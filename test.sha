@@ -1,0 +1,10 @@
+def chino(val coffee: String, val amount: Int) = Int{
+	print("I am Chino Kafu")
+	1
+}
+
+def hoge() = String {
+	int a = 1
+	hufa(a)
+	a.str()
+}
