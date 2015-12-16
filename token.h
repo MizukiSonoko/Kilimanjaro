@@ -1,8 +1,8 @@
 #include <string>
 
 class Token{
-	  public:
-		enum Type{
+  public:
+	enum Type{
 	        ERROR = -1,
 	        MARGIN,
 	        FIN,
@@ -29,19 +29,19 @@ class Token{
 	        OPE_SUB, 
 	        OPE_MUL, 
 	        OPE_DIV, 
-		};
-
-		Token(Type aType,std::string aValue):
-		    type_(aType),
-		    value_(aValue){}
-
-		Type type(){
-			return type_;
-		}
-		std::string value(){
-			return value_;
-		}
-	  private:
-		Type type_;
-		std::string value_;
 	};
+
+	Token(Type aType,std::string aValue):
+		type_(aType),
+		value_(aValue){}
+
+	Type type(){
+		return type_;
+	}
+	std::string value(){
+		return value_;
+	}
+  private:
+	Type type_;
+	std::string value_;
+};
