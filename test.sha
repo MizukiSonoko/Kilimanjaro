@@ -1,10 +1,27 @@
+
 def chino(val coffee: String, val amount: Int) = Int{
-	print("I am Chino Kafu")
-	1
+	coffee match {
+		case "Cappuccino": {
+				print("I am Chino Kafu")
+				1
+			}
+		case "Moca": {
+				print("I am Moca")
+				2
+			}
+		other: {
+				print("I am Cocoa")
+				3
+			}
+		}
+	}
 }
 
 def hoge() = String {
 	int a = 1
 	hufa(a)
 	a.str()
+	a.len()
+	a.is("NNN")
+	a.should("JJJ")
 }
