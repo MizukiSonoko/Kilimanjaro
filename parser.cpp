@@ -85,7 +85,30 @@ namespace parser{
         return res;
     }
 
-int flag = 0;
+    vector<shared_ptr<Rule>> first(initializer_list<shared_ptr<Rule>> l){
+        if(l.size() == 0)
+            return {Epsilon};
+
+        vector<shared_ptr<Rule>> res;
+        
+        auto it = l.begin();
+        if(*it == Epsilon) return {Epsilon};
+        if((*it)->isTerm()) return {*it};
+
+        auto ext = first(*it); 
+        if(find(ext.begin(), ext.end(), Epsilon) != ext.end()){
+            ext.erase(remove(ext.begin(), ext.end(), Epsilon), ext.end());
+            res.insert(res.end(), ext.begin(), ext.end());                
+            if(l.size() >= 2 ){
+                it++;
+                auto next = first(*it);
+                res.insert(res.end(), next.begin(), next.end());
+            }
+            return res;
+        }else{
+            return ext;
+        }
+    }
 
     vector<shared_ptr<Rule>> follow(shared_ptr<Rule> Rs){
         vector<shared_ptr<Rule>> res;
@@ -106,10 +129,8 @@ int flag = 0;
                                 auto left = follow(rule);
                                 res.insert(res.end(), left.begin(), left.end());
                             }
-                            //}else{
                             ext.erase(remove(ext.begin(), ext.end(), Epsilon), ext.end());
                             res.insert(res.end(), ext.begin(), ext.end());
-                            //}
                         }else{
                             auto left = follow(rule);
                             res.insert(res.end(), left.begin(), left.end());
@@ -183,6 +204,11 @@ int flag = 0;
         test(Tq);
 
         test(F);
+        
+        cout<<"===\n";
+        for(auto r: first({mR("*"),F,Tq})){
+            cout << string(*r) << endl;
+        }
     }
 }
 
