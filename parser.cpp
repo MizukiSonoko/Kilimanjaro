@@ -2,7 +2,9 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
+
 
 #include <iostream>
 
@@ -47,7 +49,7 @@ namespace parser{
         }
     };
     
-    unorderd_map<string, vector<shared_ptr<Rule>> follow_table;
+    unordered_map<string, vector<shared_ptr<Rule>>> follow_table;
     // Rules
     vector<shared_ptr<Rule>> rules;
     shared_ptr<Rule> Epsilon(new Rule("Epsilon"));
@@ -73,6 +75,8 @@ namespace parser{
                     if(r.size() >= 2){
                         auto nxt = first(r[1]);
                         res.insert(res.end(), nxt.begin(), nxt.end());
+                    }else{
+                        res.push_back(Epsilon);
                     }
                 }
                 res.insert(res.end(), ext.begin(), ext.end());
@@ -81,35 +85,34 @@ namespace parser{
         return res;
     }
 
+int flag = 0;
+
     vector<shared_ptr<Rule>> follow(shared_ptr<Rule> Rs){
-        cout<<"follow\n";
         vector<shared_ptr<Rule>> res;
         if(Rs == E){
             res.push_back(FIN);
-            return res;
         }
+
         for(auto rule : rules){
+
+            if(rule == Rs) continue;
+
             for(auto r : rule->rules()){
                 for(size_t i = 1; i < r.size(); i++){
-                    cout<<string(*rule)<<endl;
                     if(string(*r[i]) == string(*Rs)){
-                        cout<<"~~~~~\n";
-                        if(i + 1 < r.size()){
+                        if(i + 1 < r.size()){                            
                             auto ext = first(r[i+1]);
                             if(find(ext.begin(), ext.end(), Epsilon) != ext.end()){
-                                ext = follow(rule);
-                                res.insert(res.end(), ext.begin(), ext.end());
-                            }else{
-                                ext.erase(remove(ext.begin(), ext.end(), Epsilon), ext.end());
-                                res.insert(res.end(), ext.begin(), ext.end());
+                                auto left = follow(rule);
+                                res.insert(res.end(), left.begin(), left.end());
                             }
-                            for(auto e : ext){
-                                cout<<string(*e) <<endl;
-                            }
-                            cout<<"=====\n";
-                        }else{
-                            auto ext = follow(rule);
+                            //}else{
+                            ext.erase(remove(ext.begin(), ext.end(), Epsilon), ext.end());
                             res.insert(res.end(), ext.begin(), ext.end());
+                            //}
+                        }else{
+                            auto left = follow(rule);
+                            res.insert(res.end(), left.begin(), left.end());
                         }
                     }
                 }
