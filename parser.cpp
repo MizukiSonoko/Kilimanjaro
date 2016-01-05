@@ -190,9 +190,11 @@ namespace parser{
       public:
         Item(string name,initializer_list<Rule> lr):
             s(name){
-            auto ext = R(name, lr);
-            f.push_back(ext);
+            f.insert(f.end(),lr.begin(),lr.end());
+            //auto ext = R(name, lr);
+            //f.push_back(ext);
         }
+        Item(){};
         void add(Rule r){
             f.push_back(r);
         }
@@ -202,11 +204,12 @@ namespace parser{
         vector<Rule> rules() const{
             return f;
         }
+        string name() const{
+            return s;
+        }
         friend ostream& operator<<(ostream &out, const Item &i){
             for(auto r : i.rules()){
-                if(r->isTerm()){
-                    out << string(*r);
-                }else{ 
+                if(!r->isTerm()){
                     for(auto& rule : r->rules()){
                         out << string(*r) << " -> ";
                         for(auto s : rule){
@@ -219,31 +222,91 @@ namespace parser{
             return out;
         }
     };
-    void closure(Item* I){
-        int size = I->size(); 
-        int c = 0;
-        while(c<1){
-            c++;
 
-            for(auto& left : I->rules()){                
+    shared_ptr<Item> Closure(shared_ptr<Item> I){
+        int size = I->size();
+        vector<string> alreadys;
+        while(1){
+            for(auto& left : I->rules()){ 
                 for(auto rule : left->rules()){
-                    if(rule.size() >= 2){
+                    if(rule.size() >= 2 &&
+                        find(alreadys.begin(), alreadys.end(), rule[0]->name()) == alreadys.end()){
                         auto X = R(rule[0]->name());
-                        cout<<"===\n";
-                        cout<< *X;
-                        cout<<"===\n";
-
+                        alreadys.push_back(rule[0]->name());
                         if(!X->isTerm()){                        
                             I->add(X);
                         }
                     }
                 }
             }
-            if(size == I->size()) return;
+            if(size == I->size()) break;
             size = I->size();
         }
+        return I;
     }
 
+    shared_ptr<Item> Goto(shared_ptr<Item> I,Rule rule){
+        shared_ptr<Item> J(new Item());
+        for(auto& vR: I->rules()){
+            for(auto& r : vR->rules()){
+                if(find(r.begin(),r.end(),rule) != r.end()){
+                    J->add(vR);
+                }
+            }
+        }
+        Closure(J);
+        return J;
+    }
+
+    struct Edge{
+        shared_ptr<Item> I;
+        shared_ptr<Item> J;
+        Rule X;
+    };
+
+    void create_dfa(){
+        vector<Edge> E;
+        auto T = 
+            vector<shared_ptr<Item>>({
+                Closure(shared_ptr<Item>(new Item("S'",{R("E"),R("FIN")})))
+            });
+        // T = {I,I,I}.
+        auto t_size = T.size();
+        auto e_size = E.size();
+        int c = 0;
+        while(c < 10){
+            c++;
+            // I = Item
+            for(auto& I : T){
+                // I has "S -> aXb"; 
+                for(auto& X : I->rules()){
+                    auto J = Goto( I, X);
+                    cout<<"~~~~~~\n";
+                    cout << "name:" << J->name() << endl;
+                    cout << *J;
+                    cout<<"======\n";
+                    //T->add(J);      
+                    Edge edge;
+                    edge.I = I;
+                    edge.J = J;
+                    edge.X = X;
+                    E.push_back(edge);     
+                }          
+            }
+            if(t_size == T.size()) break;
+            t_size = T.size();
+
+            if(e_size == E.size()) break;
+            e_size = E.size();
+        }
+
+        cout << "======== E =====\n";
+        for(auto e : E){
+            cout<< e.I->name() <<" -(" << e.X->name() <<")-> "<< e.J->name() << endl;
+        }
+
+
+    }
     void setup(){
 
         string r1 = "E";
@@ -262,7 +325,7 @@ namespace parser{
         cR("Epsilon",true);
 
         R(r1)->add(
-            {R("T"), R(r2)}
+            {R(r3), R(r2)}
         );
 
         R(r2)->add(
@@ -312,12 +375,13 @@ namespace parser{
         test(R("F"));
 
         cout<<"===\n";
-        */
-        auto items = new Item("S",{R("F"),R("FIN")});
-        closure(items);
+        auto items = new Item("S'",{R("F"),R("FIN")});
+        Closure(items);
         cout << *items;
 
         delete items;
+        */
+        create_dfa();
         for(auto rit = rule_table.begin(); rit != rule_table.end(); ++rit){
             if(rit->second)
                 rit->second.reset();
