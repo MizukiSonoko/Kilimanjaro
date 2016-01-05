@@ -31,6 +31,11 @@ namespace parser{
         Rule(vector< vector<shared_ptr<Rule>>> f):
             f(f),isTerm_(false),epsilon(false){};
         Rule():isTerm_(false),epsilon(true){};
+        Rule(string name,initializer_list<shared_ptr<Rule>> lr):
+            s(name),isTerm_(false){
+            vector<shared_ptr<Rule>> ext(lr.begin(), lr.end());
+            f.push_back(ext);
+        }
 
         void add(vector<shared_ptr<Rule>> a){
             epsilon = false; 
@@ -43,9 +48,29 @@ namespace parser{
         vector<vector<shared_ptr<Rule>>> rules() const{
             return f;
         }
-
+        size_t size() const{
+            return f.size();
+        }
         operator string() const{
             return s;
+        }
+        string name()const{
+            return s;
+        }
+
+        friend ostream& operator<<(ostream &out, const Rule &r){
+            if(r.isTerm()){
+                out << string(r);
+            }else{ 
+                for(auto rule : r.rules()){
+                    out << string(r) << " -> ";
+                    for(auto s : rule){
+                        out << string(*s) <<" "; 
+                    }
+                    out << "\n"; 
+                }
+            }
+            return out;
         }
     };
     
@@ -142,11 +167,37 @@ namespace parser{
         return res;
     }
 
+    void closure(shared_ptr<Rule> I){
+        int size = I->size(); 
+        int c = 0;
+        while(c<1){
+            c++;
+
+            for(auto rule : I->rules()){
+                if(rule.size() >= 2){
+                    auto X = rule[0];
+                    cout<<"===\n";
+                    cout<< *X;
+                    cout<<"===\n";
+
+                    if(!X->isTerm()){
+                        for(auto ext : X->rules()){
+                            I->add(ext);
+                        }
+                    }
+                }
+            }
+            if(size == I->size()) return;
+            size = I->size();
+        }
+    }
 
     shared_ptr<Rule> mR(string v){
         return shared_ptr<Rule>(new Rule(v));
     }
-
+    shared_ptr<Rule> mR(string name,initializer_list<shared_ptr<Rule>> l){
+        return shared_ptr<Rule>(new Rule(name,l));
+    }
 
     void setup(){
         E->add(
@@ -179,6 +230,7 @@ namespace parser{
         rules.push_back(T);
         rules.push_back(Tq);
         rules.push_back(F);
+
     } 
     
     void test(shared_ptr<Rule> R){
@@ -194,7 +246,7 @@ namespace parser{
 
     void parser(){
         setup();
-
+/*
         test(E);
 
         test(Eq);
@@ -204,11 +256,18 @@ namespace parser{
         test(Tq);
 
         test(F);
-        
+
         cout<<"===\n";
-        for(auto r: first({mR("*"),F,Tq})){
-            cout << string(*r) << endl;
+        for(auto r: first({F,Tq})){
+            cout << *r << endl;
         }
+        cout <<"~~~~~~~\n";
+*/
+        auto items = mR("S",{E,FIN});
+        cout << *items;
+        cout <<"~~~~~~~\n";
+        closure(items);
+        cout << *items;
     }
 }
 
