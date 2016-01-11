@@ -14,7 +14,7 @@ namespace parser{
 
     using namespace std;
 
-    vector<Rule> first(Rule Rs){
+    vector<Sing> first(Sign sig){
         if(Rs->isTerm()){
             return {Rs};
         }
@@ -38,7 +38,7 @@ namespace parser{
         return res;
     }
 
-    vector<Rule> first(initializer_list<Rule>& l){
+    vector<Sing> first(initializer_list<Sign>& l){
         if(l.size() == 0)
             return {R("Epsilon")};
 
@@ -63,7 +63,7 @@ namespace parser{
         }
     }
 
-    vector<Rule> follow(Rule& Rs){
+    vector<Sing> follow(Sign& Rs){
         vector<Rule> res;
         
         if(Rs == R("E")){
@@ -96,14 +96,41 @@ namespace parser{
         return res;
     }
 
-    class Item{
-
-    };
 
     class Sign{
-
+        string name_;
+        bool isTerm_;
+      public:
+        Sign(string n, bool t){
+            name_ = n;
+            isTerm_ = t;
+        }
+        bool isTerm(){
+            return isTerm_;
+        }
+        string name(){
+            return name_;
+        }
     };
 
+    class Item{
+        Sgin left;
+        vector<Sign> rights;
+        int pos;
+      public:
+        Item(Sing l, initializer_list<Rule>& r){
+            left = l;
+            rights(r.begin(), r.end());
+        }
+        Sign nextSign(){
+            if(right.size() > pos)
+                return right[pos];
+            return nullptr;
+        }
+        void next(){
+            pos++;
+        }
+    };
 
     void setup(){
 
