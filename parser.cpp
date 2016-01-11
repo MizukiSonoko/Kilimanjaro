@@ -12,45 +12,100 @@
 
 namespace parser{
 
-    using namespace std;
-
-    vector<Sing> first(Sign sig){
-        if(Rs->isTerm()){
-            return {Rs};
+ 	class Sign{
+        std::string name_;
+        bool isTerm_;
+      public:
+        Sign(std::string n, bool t){
+            name_ = n;
+            isTerm_ = t;
         }
-        vector<Rule> res; 
-        for(auto& r : Rs->rules()){
-            if(!r.empty()){
-                auto ext = first(r[0]);
-                if(find(ext.begin(), ext.end(), R("Epsilon")) != ext.end()){
-                    ext.erase(remove(ext.begin(), ext.end(), R("Epsilon")), ext.end());
-                    res.insert(res.end(), ext.begin(), ext.end());
-                    if(r.size() >= 2){
-                        auto nxt = first(r[1]);
+		Sign(std::string n){
+			name_ = n;
+		    isTerm_ = true;	
+		}
+		Sign(){
+			name_ ="";
+			isTerm_ = true;
+		}
+        bool isTerm(){
+            return isTerm_;
+        }
+        std::string name(){
+            return name_;
+        }
+		operator std::string() const{
+    		return name_;
+		}
+	};
+
+    class Item{
+	  public:
+        Sign left;
+        std::vector<Sign> rights;
+        int pos;
+        Item(Sign l, std::initializer_list<Sign> const & r){
+            left = l;
+            rights.insert(rights.end(),r.begin(), r.end());
+        }
+        Sign nextSign(){
+            if(rights.size() > pos)
+                return rights[pos];
+            return Sign();
+        }
+        void next(){
+            pos++;
+        }
+    };
+
+
+	std::vector<Item> rules;
+
+	std::vector<Item> getItems(Sign s){
+		std::vector<Item> res;
+		for(auto& i : rules){
+			if(i.left.name() == s.name()){
+				res.push_back(i);
+			}
+		}
+		return res;
+	}
+
+    std::vector<Sign> first(Sign sign){
+        if(sign.isTerm()){
+            return {sign};
+        }
+        std::vector<Sign> res; 
+        for(auto& i : getItems(sign)){
+        	auto ext = first(i.rights[0]);
+            if(find(ext.begin(), ext.end(), Sign("Epsilon",true)) != ext.end()){
+            	ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon",true)), ext.end());
+               	res.insert(res.end(), ext.begin(), ext.end());
+                    if(i.rights.size() >= 2){
+                        auto nxt = first(i.rights[1]);
                         res.insert(res.end(), nxt.begin(), nxt.end());
                     }else{
-                        res.push_back(R("Epsilon"));
+                        res.push_back(Sign("Epsilon",true));
                     }
-                }
-                res.insert(res.end(), ext.begin(), ext.end());
             }
+            res.insert(res.end(), ext.begin(), ext.end());
         }
         return res;
     }
-
-    vector<Sing> first(initializer_list<Sign>& l){
+/*
+    std::vector<Sing> first(initializer_list<Sign>& l){
         if(l.size() == 0)
-            return {R("Epsilon")};
+            return {Sign("Epsilon")};
 
-        vector<Rule> res;
+        std::vector<Rule> res;
         
         auto it = l.begin();
-        if(*it == R("Epsilon")) return {R("Epsilon")};
+        if(*it == Sign("Epsilon")) return {Sign("Epsilon")};
         if((*it)->isTerm()) return {*it};
 
         auto ext = first(*it); 
-        if(find(ext.begin(), ext.end(), R("Epsilon")) != ext.end()){
-            ext.erase(remove(ext.begin(), ext.end(), R("Epsilon")), ext.end());
+        if(find(ext.begin(), ext.end(), Sign("Epsilon")) != ext.end()){
+            ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon")), ext.end());
             res.insert(res.end(), ext.begin(), ext.end());                
             if(l.size() >= 2 ){
                 it++;
@@ -63,11 +118,11 @@ namespace parser{
         }
     }
 
-    vector<Sing> follow(Sign& Rs){
-        vector<Rule> res;
+    std::vector<Sing> follow(Sign& Rs){
+        std::vector<Rule> res;
         
-        if(Rs == R("E")){
-            res.push_back(R("FIN"));
+        if(Rs == Sign("E")){
+            res.push_back(Sign("FIN"));
         }
 
         for(auto rit = rule_table.cbegin(); rit != rule_table.cend(); ++rit){
@@ -76,14 +131,14 @@ namespace parser{
 
             for(auto r : rule->rules()){
                 for(size_t i = 1; i < r.size(); i++){
-                    if(string(*r[i]) == string(*Rs)){
+                    if(std::string(*r[i]) == std::string(*Rs)){
                         if(i + 1 < r.size()){                            
                             auto ext = first(r[i+1]);
-                            if(find(ext.begin(), ext.end(), R("Epsilon")) != ext.end()){
+                            if(find(ext.begin(), ext.end(), Sign("Epsilon")) != ext.end()){
                                 auto left = follow(rule);
                                 res.insert(res.end(), left.begin(), left.end());
                             }
-                            ext.erase(remove(ext.begin(), ext.end(), R("Epsilon")), ext.end());
+                            ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon")), ext.end());
                             res.insert(res.end(), ext.begin(), ext.end());
                         }else{
                             auto left = follow(rule);
@@ -95,122 +150,80 @@ namespace parser{
         }
         return res;
     }
-
-
-    class Sign{
-        string name_;
-        bool isTerm_;
-      public:
-        Sign(string n, bool t){
-            name_ = n;
-            isTerm_ = t;
-        }
-        bool isTerm(){
-            return isTerm_;
-        }
-        string name(){
-            return name_;
-        }
-    };
-
-    class Item{
-        Sgin left;
-        vector<Sign> rights;
-        int pos;
-      public:
-        Item(Sing l, initializer_list<Rule>& r){
-            left = l;
-            rights(r.begin(), r.end());
-        }
-        Sign nextSign(){
-            if(right.size() > pos)
-                return right[pos];
-            return nullptr;
-        }
-        void next(){
-            pos++;
-        }
-    };
+*/
 
     void setup(){
 
-        string r1 = "E";
-        string r2 = "Eq";
-        string r3 = "T";
-        string r4 = "Tq";
-        string r5 = "F";
+        std::string r1 = "E";
+        std::string r2 = "Eq";
+        std::string r3 = "T";
+        std::string r4 = "Tq";
+        std::string r5 = "F";
 
-        cR(r1);
-        cR(r2);
-        cR(r3);
-        cR(r4);
-        cR(r5);
+        rules.push_back(Item(Sign(r1,false),
+            {Sign(r3), Sign(r2)}
+        ));
 
-        cR("FIN",true);
-        cR("Epsilon",true);
-
-        R(r1)->add(
-            {R(r3), R(r2)}
-        );
-
-        R(r2)->add(
-            {R("+"), R(r3), R(r2)}
-        );
-        R(r2)->add(
-            {R("Epsilon")}
-        );
-        R(r3)->add(
-            {R(r5), R(r4)}
-        );
-        R(r4)->add(
-            {R("*"), R(r5), R(r4)}
-        );
-        R(r4)->add(
-            {R("Epsilon")}
-        );
-        R(r5)->add(
-            {R("("), R(r1), R(")")}
-        );
-        R(r5)->add(
-            {R("i")}
-        );
+        rules.push_back(Item(Sign(r2,false),
+            {Sign("+"), Sign(r3,false), Sign(r2,false)}
+        ));
+        rules.push_back(Item(Sign(r2,false),
+            {Sign("Epsilon")}
+        ));
+        rules.push_back(Item(Sign(r3,false),
+            {Sign(r5,false), Sign(r4,false)}
+        ));
+        rules.push_back(Item(Sign(r4,false),
+            {Sign("*"), Sign(r5,false), Sign(r4,false)}
+        ));
+        rules.push_back(Item(Sign(r4,false),
+            {Sign("Epsilon")}
+        ));
+        rules.push_back(Item(Sign(r5,false),
+            {Sign("("), Sign(r1,false), Sign(")")}
+        ));
+        rules.push_back(Item(Sign(r5,false),
+            {Sign("i")}
+		));
     } 
     
-    void test(Rule R){
-        cout << "==== "<<string(*R)<< " ===\n";        
-        for(auto& r: first(R)){
-            cout << string(*r) << endl;
+    void test(Sign S){
+        std::cout << "==== "<<std::string(S)<< " ===\n";        
+        for(auto& s: first(S)){
+            std::cout << std::string(s) << std::endl;
         }
-        cout<<"===\n";
+		/*
+        std::cout<<"===\n";
         for(auto& r: follow(R)){
-            cout << string(*r) << endl;
+            std::cout << std::string(*r) << std::endl;
         }
+		*/
     }
 
     void parser(){
         setup();        
-        test(R("E"));
+        test(Sign("E"));
 
-        test(R("Eq"));
+        test(Sign("Eq"));
 
-        test(R("T"));
+        test(Sign("T"));
 
-        test(R("Tq"));
+        test(Sign("Tq"));
 
-        test(R("F"));
+        test(Sign("F"));
 
-        cout<<"===\n";
-        auto items = new Item("S'",{R("F"),R("FIN")});
+        std::cout<<"===\n";
+        //auto items = new Item("S'",{Sign("F"),Sign("FIN")});
         //Closure(items);
-        //cout << *items;
+        //std::cout << *items;
 
-        delete items;
+        //delete items;
         
-        create_dfa();
-        for(auto rit = rule_table.begin(); rit != rule_table.end(); ++rit){
-            if(rit->second)
-                rit->second.reset();
-        }
+        //create_dfa();
+        //for(auto rit = rule_table.begin(); rit != rule_table.end(); ++rit){
+        //    if(rit->second)
+        //        rit->second.reset();
+        //}
     }
 }
 
@@ -219,3 +232,29 @@ int main(){
     parser::parser();
     return 0;
 }
+/*
+ * ==== T ===
+ * (
+ * i
+ * ===
+ * FIN
+ * )
+ * +
+ * ==== Tq ===
+ * *
+ * Epsilon
+ * ===
+ * FIN
+ * )
+ * +
+ * ==== F ===
+ * (
+ * i
+ * ===
+ * FIN
+ * )
+ * +
+ * *
+ * ===
+ */
+
