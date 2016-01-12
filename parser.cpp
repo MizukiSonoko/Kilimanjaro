@@ -48,6 +48,7 @@ namespace parser{
         std::vector<Sign> rights;
         int pos;
         Item(Sign l, std::initializer_list<Sign> const & r){
+			pos = 0;
             left = l;
             rights.insert(rights.end(),r.begin(), r.end());
         }
@@ -58,10 +59,21 @@ namespace parser{
 			if(rights.size() > pos+1)
             	pos++;
         }
+		bool isLast(){
+			return pos == rights.size()-1;
+		}
 		friend std::ostream& operator<<(std::ostream &out, const Item &i){
 			out << std::string(*i.left) <<" => ";
-			for(auto s : i.rights){
-				out << std::string(*s) <<" ";
+			if(i.pos == 0){
+				out<< " . ";
+			}
+			for(int j=0;j<i.rights.size();j++){
+				out << std::string(*i.rights[j]);
+				if(i.pos == j+1){
+					out<< " . ";
+				}else{
+					out<<"   ";
+				}
 			}
 			out << "\n";
 			return out;
@@ -187,50 +199,97 @@ namespace parser{
 	void closure(std::vector<Item>& I){
 		int size = I.size();
 		std::vector<Sign> alreadys;
-		auto Ib = I;
 		do{
 			size = I.size();
-			//std::cout<<"LOOP\n";
-			for(auto i : Ib){
+			std::cout<<"LOOP\n";
+			for(auto i : I){
 				//std::cout<< i << std::endl;
 				auto X = getItems( i.nextSign() );
+
+				std::cout<< "SIZE:"<<X.size()<<std::endl;
 				//std::cout<<"item \n";
 				for(auto x : X){
-					//std::cout<< "#######\n" << x <<"\n";
-					if(find(alreadys.begin(), alreadys.end(), x.left) != alreadys.end()){
+					std::cout<< "#######\n" << x <<"\n";
+					//if(find(alreadys.begin(), alreadys.end(), x.left) != alreadys.end()){
 						//std::cout<<":CON\n";
-							continue;
-					}
+					//		continue;
+					//}
 					//std::cout<<"loop\n";
-					x.next();
+					//x.next();
 					//std::cout<<"push X\n";
 					I.push_back(x);
-					alreadys.push_back(x.left);
+					//alreadys.push_back(x.left);
 				}
 			}
-			//std::cout<< size <<" "<<I.size() << "\n";
+			std::cout<< size <<" "<<I.size() << "\n";
 		}while( size != I.size() );
 	}
 
 	std::vector<Item> Goto(std::vector<Item> I,Sign X){
 		std::vector<Item> J;
+		/*
+		std::cout << "Goto argv b--------\n";
+		for(auto i : I) std::cout<< i;
+		std::cout<< std::string(*X)<<std::endl;;
+		std::cout << "Goto argv e--------\n";
+		// */
 		for(auto i : I){
-			i.next();
-            J.push_back(i);
+			if(i.nextSign() == X && !i.isLast()){
+				//std::cout<<"1^^^^\n";
+				i.next();
+				//std::cout<< i;
+            	J.push_back(i);
+				//std::cout<<"2^^^^\n";
+			}
 		}
 		closure(J);
 		return J;
 	}
 
 	void DFA(){
+		std::cout<<"Start\n";
 		std::vector<std::vector<Item>> T;
+		std::vector<std::vector<Item>> Tt;
 		std::vector<Item> f({ Item( mS("S"),{ E, Fin}) });
 		closure(f);
 		T.push_back(f);
+		int size = T.size();
+		int count = 0;
+		std::cout<< f[0];
+		std::cout<<"++++++++++++++++\n";
+		Tt = T;
+		std::vector<Sign> alreadys;
+		while( count < 5){
+			count++;
+			for(auto t : T){
+				for(auto i : t){
+					std::cout<< "i loop start\n"<< i;
+					if(find(alreadys.begin(), alreadys.end(), i.nextSign()) != alreadys.end())
+						continue;
+					alreadys.push_back(i.nextSign());
+					auto J = Goto( t, i.nextSign());
+					std::cout << "***************************\n";
+					std::cout << "I:"<< std::string(*i.nextSign()) << std::endl;
+					for(auto j : J)
+						std::cout << j;
+					std::cout << "***************************\n";
+					T.push_back(J);
+					std::cout<<"i loop end\n";
+				}
+				std::cout<<"t loop end\n";
+			}
+			std::cout<< size << " " << T.size() << std::endl; 
+			if( size != T.size()){
+				size = T.size();
+			}else{
+				break;
+			}
+		}
+		std::cout<<"####################\n";
 		for(auto t : T){
+			std::cout<<"~~~~~~~~~~~~~~~\n";
 			for(auto i : t){
-				auto J = Goto( t, i.nextSign());
-				T.push_back(J);
+				std::cout<< i;
 			}
 		}
 	}
@@ -277,7 +336,6 @@ namespace parser{
         for(auto& r: follow(S)){
             std::cout << std::string(*r) << std::endl;
         }
-		
 	}
 
 
@@ -293,14 +351,16 @@ namespace parser{
         test(Tq);
 
         test(F);
-		*/
+		
         std::cout<<"===\n";
 		std::vector<Item> items = { Item( mS("S"), { E, Fin}) };
         closure(items);
 		std::cout<<"~~~~~~~~~~~~~~~\n";
         for(auto i : items)
 			std::cout << i;
-
+		*/
+		DFA();
+	
         //delete items;
         
         //create_dfa();
