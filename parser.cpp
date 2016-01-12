@@ -52,14 +52,21 @@ namespace parser{
             rights.insert(rights.end(),r.begin(), r.end());
         }
         Sign nextSign(){
-            if(rights.size() > pos)
-                return rights[pos];
-            return Sign();
+        	return rights[pos];
         }
         void next(){
-            pos++;
+			if(rights.size() > pos+1)
+            	pos++;
         }
-    };
+		friend std::ostream& operator<<(std::ostream &out, const Item &i){
+			out << std::string(*i.left) <<" => ";
+			for(auto s : i.rights){
+				out << std::string(*s) <<" ";
+			}
+			out << "\n";
+			return out;
+		}
+	};
 	
 	Sign mS(std::string name){
 		return Sign(new Sign_(name,false));
@@ -145,6 +152,7 @@ namespace parser{
     }
 */
     std::vector<Sign> follow(Sign& s){
+		std::cout<< std::string(*s) << std::endl;
         std::vector<Sign> res;
         
         if(s == E){
@@ -177,14 +185,30 @@ namespace parser{
     }
 
 	void closure(std::vector<Item>& I){
-		int size = I->size();
+		int size = I.size();
+		std::vector<Sign> alreadys;
+		auto Ib = I;
 		do{
-			for(auto i : I){
-				auto X = getItem(i.nextSign() );
+			size = I.size();
+			//std::cout<<"LOOP\n";
+			for(auto i : Ib){
+				//std::cout<< i << std::endl;
+				auto X = getItems( i.nextSign() );
+				//std::cout<<"item \n";
 				for(auto x : X){
+					//std::cout<< "#######\n" << x <<"\n";
+					if(find(alreadys.begin(), alreadys.end(), x.left) != alreadys.end()){
+						//std::cout<<":CON\n";
+							continue;
+					}
+					//std::cout<<"loop\n";
+					x.next();
+					//std::cout<<"push X\n";
 					I.push_back(x);
+					alreadys.push_back(x.left);
 				}
 			}
+			//std::cout<< size <<" "<<I.size() << "\n";
 		}while( size != I.size() );
 	}
 
@@ -237,7 +261,8 @@ namespace parser{
 
     void parser(){
         setup();        
-        test(E);
+        /*
+		test(E);
 
         test(Eq);
 
@@ -246,11 +271,13 @@ namespace parser{
         test(Tq);
 
         test(F);
-
+		*/
         std::cout<<"===\n";
-        //auto items = new Item("S'",{Sign("F"),Sign("FIN")});
-        //Closure(items);
-        //std::cout << *items;
+		std::vector<Item> items = { Item( mS("S"), { E, Fin}) };
+        closure(items);
+		std::cout<<"~~~~~~~~~~~~~~~\n";
+        for(auto i : items)
+			std::cout << i;
 
         //delete items;
         
