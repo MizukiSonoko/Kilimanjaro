@@ -75,6 +75,7 @@ namespace parser{
     auto  F = mS("F");
 
 	auto Eps = mtS("Epsilon");
+	auto Fin = mtS("Fin");
 
 	std::vector<Item> rules;
 
@@ -99,10 +100,10 @@ namespace parser{
 			return res;
 
         for(auto& i : items){
-			std::cout << std::string( *i.left ) << " " << i.rights.size()  <<std::endl;
+			//std::cout << std::string( *i.left ) << " " << i.rights.size()  <<std::endl;
         	auto ext = first(i.rights[0]);
             if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-				std::cout <<"Eps!\n";
+				//std::cout <<"Eps!\n";
             	ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
                	res.insert(res.end(), ext.begin(), ext.end());
                     if(i.rights.size() >= 2){
@@ -111,9 +112,10 @@ namespace parser{
                     }else{
                         res.push_back( Eps);
                     }
-            }else
+            }else{
             	res.insert(res.end(), ext.begin(), ext.end());
-        }
+			}
+		}
         return res;
     }
 /*
@@ -141,40 +143,39 @@ namespace parser{
             return ext;
         }
     }
-
-    std::vector<Sing> follow(Sign& Rs){
-        std::vector<Rule> res;
+*/
+    std::vector<Sign> follow(Sign& s){
+        std::vector<Sign> res;
         
-        if(Rs == Sign("E")){
-            res.push_back(Sign("FIN"));
+        if(s == E){
+            res.push_back(Fin);
         }
 
-        for(auto rit = rule_table.cbegin(); rit != rule_table.cend(); ++rit){
-            auto rule = rit->second; 
-            if(rule == Rs) continue;
+        for(auto rit = rules.cbegin(); rit != rules.cend(); ++rit){
+            auto ls = rit->left; 
+            if(ls == s) continue;
 
-            for(auto r : rule->rules()){
-                for(size_t i = 1; i < r.size(); i++){
-                    if(std::string(*r[i]) == std::string(*Rs)){
-                        if(i + 1 < r.size()){                            
-                            auto ext = first(r[i+1]);
-                            if(find(ext.begin(), ext.end(), Sign("Epsilon")) != ext.end()){
-                                auto left = follow(rule);
-                                res.insert(res.end(), left.begin(), left.end());
-                            }
-                            ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon")), ext.end());
-                            res.insert(res.end(), ext.begin(), ext.end());
-                        }else{
-                            auto left = follow(rule);
+			auto rs = rit->rights;
+            for(size_t i = 1; i < rs.size(); i++){
+            	if(rs[i] == s){
+                	if(i + 1 < rs.size()){                            
+                    	auto ext = first(rs[i+1]);
+                        if(find(ext.begin(), ext.end(), Eps) != ext.end()){
+               	        	auto left = follow(ls);
                             res.insert(res.end(), left.begin(), left.end());
                         }
+                        ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
+                       	res.insert(res.end(), ext.begin(), ext.end());
+                    }else{
+                        auto left = follow(ls);
+                        res.insert(res.end(), left.begin(), left.end());
                     }
                 }
             }
         }
         return res;
     }
-*/
+
 
 	void setup(){
 
@@ -215,21 +216,19 @@ namespace parser{
         for(auto& s: first(S)){
             std::cout << std::string(*s) << std::endl;
         }
-		cout <<"=====\n";
-		/*
         std::cout<<"===\n";
-        for(auto& r: follow(R)){
+        for(auto& r: follow(S)){
             std::cout << std::string(*r) << std::endl;
         }
-		*/
-    }
+		
+	}
 
 
     void parser(){
         setup();        
-        //test(E);
+        test(E);
 
-        //test(Eq);
+        test(Eq);
 
         test(T);
 
