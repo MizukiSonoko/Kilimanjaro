@@ -79,6 +79,7 @@ namespace parser{
 	std::vector<Item> rules;
 
 	std::vector<Item> getItems(Sign s){
+		//std::cout << std::string(*s) << std::endl;
 		std::vector<Item> res;
 		for(auto& i : rules){
 			if(i.left->name() == s->name()){
@@ -93,9 +94,15 @@ namespace parser{
             return {sign};
         }
         std::vector<Sign> res; 
-        for(auto& i : getItems(sign)){
+		auto items = getItems( sign );
+		if(items.size() == 0)
+			return res;
+
+        for(auto& i : items){
+			std::cout << std::string( *i.left ) << " " << i.rights.size()  <<std::endl;
         	auto ext = first(i.rights[0]);
             if(find(ext.begin(), ext.end(), Eps) != ext.end()){
+				std::cout <<"Eps!\n";
             	ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
                	res.insert(res.end(), ext.begin(), ext.end());
                     if(i.rights.size() >= 2){
@@ -104,8 +111,8 @@ namespace parser{
                     }else{
                         res.push_back( Eps);
                     }
-            }
-            res.insert(res.end(), ext.begin(), ext.end());
+            }else
+            	res.insert(res.end(), ext.begin(), ext.end());
         }
         return res;
     }
@@ -171,9 +178,8 @@ namespace parser{
 
 	void setup(){
 
-
         rules.push_back(Item( E,
-            { E, Eq }
+            { T, Eq }
         ));
 
         rules.push_back(Item( Eq,
@@ -182,28 +188,34 @@ namespace parser{
         rules.push_back(Item( Eq,
             { Eps }
         ));
-        rules.push_back(Item( T,
+        
+		rules.push_back(Item( T,
             { F, Tq}
         ));
-        rules.push_back(Item( Tq,
-            { mtS("*"), F, Tq}
+        
+		rules.push_back(Item( Tq,
+            { mtS("*"), F, Tq }
         ));
         rules.push_back(Item( Tq,
             { Eps }
         ));
-        rules.push_back(Item( T,
+
+        rules.push_back(Item( F,
             { mtS("("), E, mtS(")")}
         ));
         rules.push_back(Item( F,
             { mtS("i")}
 		));
     } 
+
+	using namespace std;
     
     void test(Sign S){
         std::cout << "==== "<<std::string(*S)<< " ===\n";        
         for(auto& s: first(S)){
             std::cout << std::string(*s) << std::endl;
         }
+		cout <<"=====\n";
 		/*
         std::cout<<"===\n";
         for(auto& r: follow(R)){
@@ -215,9 +227,9 @@ namespace parser{
 
     void parser(){
         setup();        
-        test(E);
+        //test(E);
 
-        test(Eq);
+        //test(Eq);
 
         test(T);
 
