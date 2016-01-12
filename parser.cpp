@@ -12,19 +12,19 @@
 
 namespace parser{
 
- 	class Sign{
+ 	class Sign_{
         std::string name_;
         bool isTerm_;
       public:
-        Sign(std::string n, bool t){
+        Sign_(std::string n, bool t){
             name_ = n;
             isTerm_ = t;
         }
-		Sign(std::string n){
+		Sign_(std::string n){
 			name_ = n;
 		    isTerm_ = true;	
 		}
-		Sign(){
+		Sign_(){
 			name_ ="";
 			isTerm_ = true;
 		}
@@ -39,7 +39,10 @@ namespace parser{
 		}
 	};
 
-    class Item{
+	
+	using Sign = std::shared_ptr<Sign_>;
+    
+	class Item{
 	  public:
         Sign left;
         std::vector<Sign> rights;
@@ -57,14 +60,28 @@ namespace parser{
             pos++;
         }
     };
+	
+	Sign mS(std::string name){
+		return Sign(new Sign_(name,false));
+	}
+	Sign mtS(std::string name){
+		return Sign(new Sign_(name));
+	}
 
+    auto  E = mS("E");
+    auto Eq = mS("Eq");
+    auto  T = mS("T");
+    auto Tq = mS("Tq");
+    auto  F = mS("F");
+
+	auto Eps = mtS("Epsilon");
 
 	std::vector<Item> rules;
 
 	std::vector<Item> getItems(Sign s){
 		std::vector<Item> res;
 		for(auto& i : rules){
-			if(i.left.name() == s.name()){
+			if(i.left->name() == s->name()){
 				res.push_back(i);
 			}
 		}
@@ -72,20 +89,20 @@ namespace parser{
 	}
 
     std::vector<Sign> first(Sign sign){
-        if(sign.isTerm()){
+        if(sign->isTerm()){
             return {sign};
         }
         std::vector<Sign> res; 
         for(auto& i : getItems(sign)){
         	auto ext = first(i.rights[0]);
-            if(find(ext.begin(), ext.end(), Sign("Epsilon",true)) != ext.end()){
-            	ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon",true)), ext.end());
+            if(find(ext.begin(), ext.end(), Eps) != ext.end()){
+            	ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
                	res.insert(res.end(), ext.begin(), ext.end());
                     if(i.rights.size() >= 2){
                         auto nxt = first(i.rights[1]);
                         res.insert(res.end(), nxt.begin(), nxt.end());
                     }else{
-                        res.push_back(Sign("Epsilon",true));
+                        res.push_back( Eps);
                     }
             }
             res.insert(res.end(), ext.begin(), ext.end());
@@ -152,45 +169,40 @@ namespace parser{
     }
 */
 
-    void setup(){
+	void setup(){
 
-        std::string r1 = "E";
-        std::string r2 = "Eq";
-        std::string r3 = "T";
-        std::string r4 = "Tq";
-        std::string r5 = "F";
 
-        rules.push_back(Item(Sign(r1,false),
-            {Sign(r3), Sign(r2)}
+        rules.push_back(Item( E,
+            { E, Eq }
         ));
 
-        rules.push_back(Item(Sign(r2,false),
-            {Sign("+"), Sign(r3,false), Sign(r2,false)}
+        rules.push_back(Item( Eq,
+            {mtS("+"), T,  Eq }
         ));
-        rules.push_back(Item(Sign(r2,false),
-            {Sign("Epsilon")}
+        rules.push_back(Item( Eq,
+            { Eps }
         ));
-        rules.push_back(Item(Sign(r3,false),
-            {Sign(r5,false), Sign(r4,false)}
+        rules.push_back(Item( T,
+            { F, Tq}
         ));
-        rules.push_back(Item(Sign(r4,false),
-            {Sign("*"), Sign(r5,false), Sign(r4,false)}
+        rules.push_back(Item( Tq,
+            { mtS("*"), F, Tq}
         ));
-        rules.push_back(Item(Sign(r4,false),
-            {Sign("Epsilon")}
+        rules.push_back(Item( Tq,
+            { Eps }
         ));
-        rules.push_back(Item(Sign(r5,false),
-            {Sign("("), Sign(r1,false), Sign(")")}
+        rules.push_back(Item( T,
+            { mtS("("), E, mtS(")")}
         ));
-        rules.push_back(Item(Sign(r5,false),
-            {Sign("i")}
+        rules.push_back(Item( F,
+            { mtS("i")}
 		));
     } 
     
     void test(Sign S){
-        std::cout << "==== "<<std::string(S)<< " ===\n";        
+        std::cout << "==== "<<std::string(*S)<< " ===\n";        
         for(auto& s: first(S)){
-            std::cout << std::string(s) << std::endl;
+            std::cout << std::string(*s) << std::endl;
         }
 		/*
         std::cout<<"===\n";
@@ -200,17 +212,18 @@ namespace parser{
 		*/
     }
 
+
     void parser(){
         setup();        
-        test(Sign("E"));
+        test(E);
 
-        test(Sign("Eq"));
+        test(Eq);
 
-        test(Sign("T"));
+        test(T);
 
-        test(Sign("Tq"));
+        test(Tq);
 
-        test(Sign("F"));
+        test(F);
 
         std::cout<<"===\n";
         //auto items = new Item("S'",{Sign("F"),Sign("FIN")});
