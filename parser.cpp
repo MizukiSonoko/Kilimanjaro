@@ -212,6 +212,14 @@ namespace parser{
 		}while( size != I.size() );
 	}
 
+	std::vector<Item> Goto(std::vector<Item> I,Sign X){
+		std::vector<Item> J;
+
+
+		closure(J);
+		return J;
+	}
+
 	void setup(){
 
         rules.push_back(Item( E,
