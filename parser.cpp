@@ -176,6 +176,17 @@ namespace parser{
         return res;
     }
 
+	void closure(std::vector<Item>& I){
+		int size = I->size();
+		do{
+			for(auto i : I){
+				auto X = getItem(i.nextSign() );
+				for(auto x : X){
+					I.push_back(x);
+				}
+			}
+		}while( size != I.size() );
+	}
 
 	void setup(){
 
