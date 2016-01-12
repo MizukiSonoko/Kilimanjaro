@@ -214,12 +214,26 @@ namespace parser{
 
 	std::vector<Item> Goto(std::vector<Item> I,Sign X){
 		std::vector<Item> J;
-
-
+		for(auto i : I){
+			i.next();
+            J.push_back(i);
+		}
 		closure(J);
 		return J;
 	}
 
+	void DFA(){
+		std::vector<std::vector<Item>> T;
+		std::vector<Item> f({ Item( mS("S"),{ E, Fin}) });
+		closure(f);
+		T.push_back(f);
+		for(auto t : T){
+			for(auto i : t){
+				auto J = Goto( t, i.nextSign());
+				T.push_back(J);
+			}
+		}
+	}
 	void setup(){
 
         rules.push_back(Item( E,
