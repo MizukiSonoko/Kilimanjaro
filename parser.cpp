@@ -137,32 +137,32 @@ namespace parser{
 		}
         return res;
     }
-/*
-    std::vector<Sing> first(initializer_list<Sign>& l){
-        if(l.size() == 0)
-            return {Sign("Epsilon")};
 
-        std::vector<Rule> res;
+    std::vector<Sign> first(std::initializer_list<Sign>& l){
+        if(l.size() == 0)
+            return {Eps};
+
+        std::vector<Sign> res;
         
         auto it = l.begin();
-        if(*it == Sign("Epsilon")) return {Sign("Epsilon")};
+        if(*it == Eps) return {Eps};
         if((*it)->isTerm()) return {*it};
 
         auto ext = first(*it); 
-        if(find(ext.begin(), ext.end(), Sign("Epsilon")) != ext.end()){
-            ext.erase(remove(ext.begin(), ext.end(), Sign("Epsilon")), ext.end());
+        if(find(ext.begin(), ext.end(), Eps) != ext.end()){
+            ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
             res.insert(res.end(), ext.begin(), ext.end());                
             if(l.size() >= 2 ){
                 it++;
                 auto next = first(*it);
                 res.insert(res.end(), next.begin(), next.end());
-            }
-            return res;
-        }else{
-            return ext;
+            }else{
+				res.push_back(Eps);
+			}
         }
+        return ext;
     }
-*/
+
     std::vector<Sign> follow(Sign& s){
 		std::cout<< std::string(*s) << std::endl;
         std::vector<Sign> res;
