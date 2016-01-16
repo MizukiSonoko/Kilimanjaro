@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 
 class Token{
@@ -15,9 +17,13 @@ class Token{
 	        RPARENT,
 	        RBRACKET,
 	        LBRACKET,
-	        RABRACKET,
+	        RABRACKET,	        
 	        LABRACKET,
+	        RCBRACKET,
+	        LCBRACKET,
 	        SEMICOLON,
+	        SHARPE,
+	        WAVY,
 	        COLON,
 	        COMMA,
 	        PERIOD,
