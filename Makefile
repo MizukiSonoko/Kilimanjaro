@@ -2,12 +2,15 @@ CC=clang++
 TARGET=sharo
 OPTION=-std=c++0x -Wall
 
-all: sharo.o
-			$(CC) sharo.o -o $(TARGET)
+all: lexer.o front.o
+			$(CC) front.o lexer.o -o $(TARGET)
 
-sharo.o: lexer.cpp
-			$(CC) $(OPTION) -c lexer.cpp
+lexer.o: lexer.cpp
+			$(CC) $(OPTION) -c lexer.cpp -o lexer.o
+
+front.o: front.cpp
+			$(CC) $(OPTION) -c front.cpp -o front.o
 
 clean:
-			rm sharo.o sharo
+			rm lexer.o front.o sharo
 
