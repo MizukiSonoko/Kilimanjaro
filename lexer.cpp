@@ -46,7 +46,8 @@ namespace lexser{
 		clean();
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
 		if(ifs.fail()){
-			throw std::runtime_error("\n\033[1;31mNo such file or directory \""+ filename +"\"\033[0m\n");
+			exit(1);
+			//throw std::runtime_error("\n\033[1;31mNo such file or directory \""+ filename +"\"\033[0m\n");
 		}
 		ifs.seekg( 0, std::ios::end);
 		int pos = ifs.tellg();

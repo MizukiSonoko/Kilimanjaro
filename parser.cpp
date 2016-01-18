@@ -105,6 +105,7 @@ namespace parser{
             log(13,"sync:"+std::to_string(i));
             if(buf_index + i > headTokens.size()){
                 int n = (buf_index + i) - (headTokens.size());
+                if(tokens.size() < n);
                 fill(n);
             }
             return true;
@@ -323,7 +324,7 @@ namespace parser{
                     }
             }
         }
-        Rule::rules["FIN"].push_back({make_pair("FIN", Token::FIN)});
+        Rule::rules["FIN"].push_back({});
         cout<<"Done\n";
     }
 
