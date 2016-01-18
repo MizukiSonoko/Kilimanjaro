@@ -5,6 +5,7 @@
 class Token{
   public:
 	enum Type{
+			NONE = -2,
 	        ERROR = -1,
 	        MARGIN,
 	        FIN,
@@ -50,4 +51,5 @@ class Token{
   private:
 	Type type_;
 	std::string value_;
+
 };

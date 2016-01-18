@@ -37,7 +37,13 @@ namespace lexser{
 		}
 	};
 
+	void clean(){
+		tokens_.clear();
+		rowString_ = "";
+	}
+	
 	bool loader(string filename){
+		clean();
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
 		if(ifs.fail()){
 			throw std::runtime_error("\n\033[1;31mNo such file or directory \""+ filename +"\"\033[0m\n");
@@ -51,7 +57,11 @@ namespace lexser{
 		rowString_ = std::move(string(buf.begin(),buf.end()));
 		return true;
 	}
-	
+
+	list<Token> tokens(){
+		return tokens_;
+	}
+
 	void lexser(){
 		int status = 0;
     	string buffer = "";
@@ -182,7 +192,7 @@ namespace lexser{
 	            	}		        
             }
         }
-        tokens_.push_back(Token(Token::FIN,"<FIN>"));        
+        tokens_.push_back(Token(Token::FIN,"<FIN>"));
 	}
 
 };

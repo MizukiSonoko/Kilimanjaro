@@ -18,7 +18,7 @@ namespace lexser{
 	};
 
 	bool loader(string filename);
+	list<Token> tokens();
 	void lexser();
-
 
 };
