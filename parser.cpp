@@ -4,6 +4,8 @@ namespace parser{
 
     using namespace std;
 
+    int log_pos = 0;
+
     bool isFirst = true;
 
     int buf_index = 0;
@@ -92,7 +94,6 @@ namespace parser{
 
         auto fill(int n)
          -> bool{
-            log(13,"fill:"+std::to_string(n) + " "+std::to_string(tokens.size()));
             for(int i = 0;i < n;i++){
                 headTokens.push_back(tokens.front());
                 tokens.pop_front();
@@ -102,10 +103,8 @@ namespace parser{
 
         auto sync(int i)
          -> bool{
-            log(13,"sync:"+std::to_string(i));
             if(buf_index + i > headTokens.size()){
                 int n = (buf_index + i) - (headTokens.size());
-                if(tokens.size() < n);
                 fill(n);
             }
             return true;
@@ -192,17 +191,18 @@ namespace parser{
     };
 
     bool match(Token::Type type){
-            log(11, "match type");
-
             Token  token =  Core::LT(1);
             curString = token.value();
             Token::Type t = token.type();
 
             if(type == t){
                 return Core::nextToken();
-            }else if(curString == token.value()){
+
+            // This is bad...
+            }else if(type == 2 && token.type() == 5){
                 return Core::nextToken();
             }else{
+                //cout<<"Syntax error! " << type << " "<< token.type() << "\n";
                 return false;
             }
     }
@@ -225,24 +225,20 @@ namespace parser{
     bool match(string name);
     
     bool match(vector<pair<string,Token::Type>> rules){
-        log(6, "match");
-        bool res = true;
         for(auto p : rules){
-            log(7, "match [" + p.first + ","+ std::to_string(p.second) +"]");
             if(p.second == Token::NONE){
-                res = res & match(p.first);
+                if(!match(p.first)) return false;
             }else{
-                res = res & match(p.second);
+                if(!match(p.second)) return false;
             }
         }
-        return res;
+        return true;
     }
 
-    bool spec(vector< vector<pair<string,Token::Type>>> patterns){
-        log(5, "spec");
+    int spec(vector< vector<pair<string,Token::Type>>> patterns){
         int count = 0;
         Core::mark();
-        for(auto p : patterns){
+        for(auto p : patterns){ 
             if(match(p)){
                 Core::release();
                 return count;
@@ -254,16 +250,29 @@ namespace parser{
     }
 
     bool match(string name){
-        log(3, "match ["+name+"]");
+        log_pos++;
+        log(log_pos, "match? ["+name+"]");
+        if(name == "Eps"){
+            if(tokens.empty()) return true;
+
+            return Core::nextToken();
+        }
+
         auto patterns = Rule::rules[name];
 
-        log(4, "match size of rule ["+std::to_string(patterns.size())+"]");
+        log(log_pos, "match size of rule ["+std::to_string(patterns.size())+"]");
         int res = spec(patterns);
-        log(4, "result:"+std::to_string(res));
+        log(log_pos, "result:"+std::to_string(res));
+
+        log_pos--;
         if(res == -1){
+            log(log_pos, "match(" + name +") is worng finished");
             return false;
         }
-        return match(patterns[res]);
+
+        log(log_pos, "match successful!!");
+        match(patterns[res]);
+        return true;
     }
 
     void loadRule(list<Token> rt){
@@ -324,18 +333,18 @@ namespace parser{
                     }
             }
         }
-        Rule::rules["FIN"].push_back({});
         cout<<"Done\n";
     }
 
     AST::AST* parser(list<Token> t){
-        log(0, "Parse start!");
+        log(log_pos, "Parse start!");
         tokens = t;
         buf_index = 0;
         while(markers.size()!=0){
             markers.pop();
         }
         headTokens.clear();
+
         auto res = match("PS");
         cout << res << endl;
         return nullptr;
