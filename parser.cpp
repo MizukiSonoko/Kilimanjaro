@@ -148,8 +148,7 @@ namespace parser{
             return markers.size() > 0;
         }
 
-        auto nextToken()
-         -> bool{
+        bool nextToken(){
             buf_index++;
             if(buf_index == headTokens.size() && !isSpec()){
                 buf_index = 0;
@@ -190,16 +189,20 @@ namespace parser{
         }
     };
 
-    bool match(Token::Type type){
+    bool match(){
+            Token  token =  Core::LT(1);
+            return Core::nextToken();
+    }
+
+    bool match(string prev,Token::Type type){
             Token  token =  Core::LT(1);
             curString = token.value();
             Token::Type t = token.type();
 
-            if(type == t){
+            if(type != 2 && type == t){
                 return Core::nextToken();
-
             // This is bad...
-            }else if(type == 2 && token.type() == 5){
+            }else if(type == 2 && curString == prev){
                 return Core::nextToken();
             }else{
                 //cout<<"Syntax error! " << type << " "<< token.type() << "\n";
@@ -229,7 +232,7 @@ namespace parser{
             if(p.second == Token::NONE){
                 if(!match(p.first)) return false;
             }else{
-                if(!match(p.second)) return false;
+                if(!match(p.first, p.second)) return false;
             }
         }
         return true;
@@ -253,9 +256,11 @@ namespace parser{
         log_pos++;
         log(log_pos, "match? ["+name+"]");
         if(name == "Eps"){
-            if(tokens.empty()) return true;
+            log(log_pos, "tokens.size() " + to_string(tokens.size()));
 
-            return Core::nextToken();
+            if(tokens.size() == 1) return true;
+            match();
+            return true;
         }
 
         auto patterns = Rule::rules[name];
@@ -329,7 +334,11 @@ namespace parser{
                     break;
                 default:
                     if(status == 6){
-                        tmps.push_back(make_pair(t.value(), t.type()));
+                        if(t.type() == Token::IDENTIFIER){
+                            tmps.push_back(make_pair(t.value(), Token::NAME));
+                        }else{
+                            tmps.push_back(make_pair(t.value(), t.type()));
+                        }
                     }
             }
         }
