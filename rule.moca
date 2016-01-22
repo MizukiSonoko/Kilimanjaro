@@ -1,43 +1,7 @@
 
-<PS> ::= <F>.
+<PS> ::= <F> "-" <PS>.
+<PS> ::= Eps.
 
-<F> ::= "def" <ID> "(" <ARGD> ")" "-" ">" <T> "{" <Ss> "}".
-<F> ::= "def" <ID> "(" ")" "-" ">" <T> "{" <Ss> "}".
-<F> ::= "def" <ID> "(" <ARGD> ")" "-" ">" <T> "{" "}".
-<F> ::= "def" <ID> "(" ")" "-" ">" <T> "{" "}".
-
-<ID> ::= "func".
-<T> ::= "int".
-<T> ::= "float".
-<T> ::= "bool".
-
-<VDecS> ::= "val" <ID> ":" <T>.
-<VDecS> ::= "val" <ID> ":" <T> "=" <Expr>.
-
-<Ss> ::= <Sn> <S>.
-<Ss> ::= <S>.
-<Sn> ::= <Ss>.
-
-<S> ::= <IfS>.
-<S> ::= <ForS>.
-<S> ::= <WhileS>.
-<S> ::= <VDecS> ";".
-<S> ::= <AsgS> ";".
-<S> ::= <FCall> ";".
-
-<IfS> ::= "if" "(" <Cond> ")" "{"  <Ss> "}".
-<IfS> ::= "if" "(" <Cond> ")" "{"  <Ss> "}" "else" "{" <Ss> "}".
-
-<ForS> ::= "for" "(" <T> <ID> ":" <DID> ")" "{" <Ss> "}". 
-
-<WhileS> ::= "while" "(" <Cond> ")" "{" <Ss> "}".
-
-<AsgS> ::= <DID> "=" <DID>.
-<AsgS> ::= <DID> "=" <Expr>.
-
-<FCall> ::=  <DID> "(" ")".
-
-<Cond> ::= <ID> "=" "=" <ID>.
-<Cond> ::= <ID> "!" "=" <ID>.
-
-<Expression> ::= "A" + "B".
+<F> ::= "(" <A> ")".
+<A> ::= "0".
+<A> ::= Eps.

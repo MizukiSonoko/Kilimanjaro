@@ -7,12 +7,12 @@ class Token{
 	enum Type{
 			NONE = -2,
 	        ERROR = -1,
-	        MARGIN,
-	        FIN,
-	        NAME,
-	        NUMBER,
-	        REALNUMBER,
-	        IDENTIFIER,
+	        MARGIN,       // 0
+	        FIN,          
+	        NAME,         // 2
+	        NUMBER,       // 3
+	        REALNUMBER,   // 4
+	        IDENTIFIER,   // 5
 	        EXCLAMATION,
 	        LPARENT,
 	        RPARENT,
