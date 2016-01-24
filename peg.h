@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 
+#include <initializer_list>
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -14,5 +15,6 @@ namespace peg{
 
 	void load_cpp(std::string filename);
 	void load_rule(std::string filename);
-	bool exec();
+	bool exec(std::string n);
+	void test();
 }
