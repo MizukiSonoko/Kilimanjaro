@@ -2,6 +2,7 @@
 
 #include <regex>
 #include <stack>
+#include <vector>
 
 namespace peg{
 	using namespace std;
@@ -45,50 +46,123 @@ namespace peg{
 		markers.pop();
 	}
 
-
-	bool match(string s){
-		cout << "s:"<< s <<endl;
-		for(auto c : s){
-			cout << "r[" << cursor <<"]=" << raw_source_[cursor] << " " << c << endl;
-			if(raw_source_[cursor] != c)
-				return false;
-			cursor++;
+	class Sign{
+		vector<vector<Sign>> rules;
+	public:
+		char value;
+		string type;
+		Sign(initializer_list<Sign> l,string t){
+			vector<Sign> v(l);
+			rules.push_back(v);
+			type = t;
 		}
-		return true;
-	}
-	bool parse_V();
+		Sign(Sign s,string t){
+			vector<Sign> v{s};
+			rules.push_back(v);
+			type = t;
+		}
+		Sign(char v, string t){
+			type = t;
+			value = v;
+		}
+		Sign(string t){
+			type = t;
+		}
 
-	bool parse_E(){
-		mark();
-		if(parse_V()){
-			if(match("+")){
-				if(parse_E()){
-					return true;
+		bool execution(){
+			if(type == "sequence"){
+				mark();
+				cout<< "--- sequence! ---\n";
+				for(auto r : rules[0]){
+					if(r.type == "Terminal"){
+						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r.value<< endl;
+						if(raw_source_[cursor] != r.value){
+							back();
+							return false;
+						}
+					}else{
+						if(!r.execution()){
+							back();
+							return false;
+						}
+					}
+					cursor++;
+				}
+				return true;
+			}else if(type == "orderedChoice"){
+				mark();
+				cout<< "--- orderedChoice! ---\n";				
+				for(auto r : rules[0]){
+					if(r.type == "Terminal"){
+						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r.value<< endl;
+						if(raw_source_[cursor] == r.value){
+							return true;
+						}
+					}else{
+						if(r.execution()){
+							return true;
+						}
+					}					
 				}
 				back();
-			}else{
+				return false;
+			}else if(type == "optional"){
+				return false;
+			}else if(type == "zeroOrMore"){
+
 				return false;
 			}
+			return false;
 		}
-		return parse_V();
+	};
+
+	Sign sequence(initializer_list<Sign> l){ // A B C ...
+		return Sign(l, "sequence");
+	}
+	Sign orderedChoice(initializer_list<Sign> l){ // A / B / C ...
+		return Sign(l, "orderedChoice");
+	}
+	Sign optional(Sign s){ // E?
+		return Sign(s, "optional");
+	}
+	Sign zeroOrMore(Sign s){ // E*
+		return Sign(s, "zeroOrMore");
+	}
+	Sign oneOrMore(Sign s){  // E+
+		return Sign(s, "oneOrMore");
+	}
+	Sign andPredicate();
+	Sign notPredicate();
+	Sign endOfString();
+
+	Sign Terminal(char v){
+		return Sign(v, "Terminal");
+	}
+	Sign Number(){		
+		return Sign("Number");
 	}
 
-	// V <- "a" "b" V / "c" 
-	bool parse_V(){
-		mark();
-		if(match("a")){
-			return true;
-		}else if(match("b")){
-			return true;			
-		}else if(match("c")){
-			return true;
-		}
-		back();
-		return false;
+	Sign Expr();
+
+	Sign Value(){
+		return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), Expr(), Terminal(')')})});
 	}
-	bool exec(){
-		raw_source_ = "abc";
-		return parse_E();
+	Sign Product(){
+		return sequence({ Value(), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), Value()}))});
+	}
+	Sign Sum(){
+		return sequence({ Product(), zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), Value()}))});
+	}
+	Sign Expr(){
+		return Sum();
+	}
+
+	bool exec(string n){
+		raw_source_ = n;
+		cursor = 0;
+		cout << "Input:"<< raw_source_ <<"\n";
+		return orderedChoice({sequence({Terminal('a'),Terminal('b')}), Terminal('c'), Terminal('d')}).execution();
+		//Expr().execution();
 	}
 
 };
