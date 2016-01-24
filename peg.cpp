@@ -56,12 +56,13 @@ namespace peg{
 		}
 		return true;
 	}
-	// V <- "a" "b" V / "c" 
-	bool parse_V(){
+	bool parse_V();
+
+	bool parse_E(){
 		mark();
-		if(match("a")){
-			if(match("b")){
-				if(parse_V()){
+		if(parse_V()){
+			if(match("+")){
+				if(parse_E()){
 					return true;
 				}
 				back();
@@ -69,11 +70,25 @@ namespace peg{
 				return false;
 			}
 		}
-		return match("c");
+		return parse_V();
+	}
+
+	// V <- "a" "b" V / "c" 
+	bool parse_V(){
+		mark();
+		if(match("a")){
+			return true;
+		}else if(match("b")){
+			return true;			
+		}else if(match("c")){
+			return true;
+		}
+		back();
+		return false;
 	}
 	bool exec(){
 		raw_source_ = "abc";
-		return parse_V();
+		return parse_E();
 	}
 
 };
