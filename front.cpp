@@ -4,7 +4,7 @@ using namespace std;
 
 int main(int argc, char* argv[]){
 
-	//peg::test();
+	peg::test();
 	//return 0;
 
 	std::string in;
