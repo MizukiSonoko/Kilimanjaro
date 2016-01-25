@@ -245,7 +245,6 @@ namespace peg{
 			#endif
 			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
 		};
-
 		rules["Product"] = []()-> Sign{
 			#ifdef DEBUG
 			cout<<"Exec product\n";
@@ -296,15 +295,17 @@ namespace peg{
 	}
 
 
-	bool tex(int num, string code, function<Sign()> c,bool correct = true){
-		cout<<"    - test "<<num<< "\n";
+	int test_counter = 0;
+	bool tex( string code, function<Sign()> c,bool correct = true){
+		test_counter++;
+		cout<<"    - test "<<test_counter<< "\n";
 		cursor = 0;
 		set_source(code);
 		if(!(c().execution() ^ correct)){
-			cout << "     \x1b[32m"<< num <<" ["<<code<<"] is Passed!\x1b[39m\n";
+			cout << "     \x1b[32m"<< test_counter <<" ["<<code<<"] is Passed!\x1b[39m\n";
 			return true;
 		}else{
-			cout << "     \033[1;31m"<< num <<" ["<<code<<"] is Faild\033[0m\n";
+			cout << "     \033[1;31m"<< test_counter <<" ["<<code<<"] is Faild\033[0m\n";
 			return false;
 		}
 	}
@@ -312,70 +313,81 @@ namespace peg{
 		
 		cout<< "# Test for sequence\n";
 		{
-			tex( 1, "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
-			tex( 2, "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
-			tex( 3, "a", sequence({Terminal('a')}));
-			tex( 4, "", sequence({Terminal('a')}), false);
+			test_counter = 0;
+			tex( "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
+			tex( "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
+			tex( "a", sequence({Terminal('a')}));
+			tex( "", sequence({Terminal('a')}), false);
 		}
 		// */
 		cout<< "# Test for orderedChoice\n";
 		{
-			tex( 1, "a", orderedChoice({Terminal('a')}));
-			tex( 2, "a", orderedChoice({Terminal('b')}), false);
-			tex( 3, "a", orderedChoice({Terminal('a'),Terminal('b')}));
-			tex( 4, "a", orderedChoice({Terminal('b'),Terminal('a')}));
-			tex( 5, "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})}));
-			tex( 6, "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})}), false);
-			tex( 7, "ba", orderedChoice({Terminal('a'),Terminal('b')}));
-			tex( 8, "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}));
-		}
-		// */		
-		cout<< "# Test for optional\n";
-		{
-			tex( 1, "", optional(Terminal('a')));
-			tex( 2, "ab", sequence({optional(Terminal('a')), Terminal('b')}));
-			tex( 3, "b", sequence({optional(Terminal('a')), Terminal('b')}));
+			test_counter = 0;
+			tex( "a", orderedChoice({Terminal('a')}));
+			tex( "a", orderedChoice({Terminal('b')}), false);
+			tex( "a", orderedChoice({Terminal('a'),Terminal('b')}));
+			tex( "a", orderedChoice({Terminal('b'),Terminal('a')}));
+			tex( "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})}));
+			tex( "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})}), false);
+			tex( "ba", orderedChoice({Terminal('a'),Terminal('b')}));
+			tex( "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}));
 		}
 		// */
+			
+		cout<< "# Test for optional\n";
+		{
+			test_counter = 0;
+			tex( "", optional(Terminal('a')));
+			tex( "ab", sequence({optional(Terminal('a')), Terminal('b')}));
+			tex( "b", sequence({optional(Terminal('a')), Terminal('b')}));
+		}
+		// */
+		
 		cout<< "# Test for zeroOrMore\n";
 		{
-			tex( 1, "", zeroOrMore(Terminal('a')));
-			tex( 2, "a", zeroOrMore(Terminal('a')));
-			tex( 3, "aaaa", zeroOrMore(Terminal('a')));
-			tex( 4, "b", zeroOrMore(Terminal('a')));
-			tex( 5, "ab", zeroOrMore(Terminal('a')));
-			tex( 6, "", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
-			tex( 7, "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
+			test_counter = 0;
+			tex( "", zeroOrMore(Terminal('a')));
+			tex( "a", zeroOrMore(Terminal('a')));
+			tex( "aaaa", zeroOrMore(Terminal('a')));
+			tex( "b", zeroOrMore(Terminal('a')));
+			tex( "ab", zeroOrMore(Terminal('a')));
+			tex( "", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
 		}
-		// */		
+		// */
+		/*	
 		cout<< "# Test for oneOrMore\n";
 		{
-			tex( 1, "", oneOrMore(Terminal('a')), false);
-			tex( 2, "a", oneOrMore(Terminal('a')));
-			tex( 3, "aaaa", oneOrMore(Terminal('a')));
-			tex( 4, "b", oneOrMore(Terminal('a')), false);
-			tex( 5, "ab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
-			tex( 6, "ababab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
-			tex( 7, "a", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
+			test_counter = 0;
+			tex( "", oneOrMore(Terminal('a')), false);
+			tex( "a", oneOrMore(Terminal('a')));
+			tex( "aaaa", oneOrMore(Terminal('a')));
+			tex( "b", oneOrMore(Terminal('a')), false);
+			tex( "ab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( "ababab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( "a", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
-		// */		
+		// */
+		/*
 		cout<< "# Test for mix\n";
 		{
-			tex( 1,"1+1", sequence({ Number(), Terminal('+'), Number()}));
-			tex( 2,"1234+1", sequence({ oneOrMore(Number()), Terminal('+'), Number()}));
-			tex( 3,"1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
-			tex( 4,"1234+", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
-			tex( 5,"-1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
-			tex( 6,"+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
+			test_counter = 0;
+			tex( "1+1", sequence({ Number(), Terminal('+'), Number()}));
+			tex( "1234+1", sequence({ oneOrMore(Number()), Terminal('+'), Number()}));
+			tex( "1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
+			tex( "1234+", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
+			tex( "-1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
+			tex( "+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
 		}
 		// */		
 		cout<< "# Test for calculator\n";
 		{
+			test_counter = 0;
 			init();
-			tex( 1, "1+1", rules["Expr"]);
-			tex( 2, "1+", rules["Expr"], false);
-			tex( 3, "+", rules["Expr"], false);
-			tex( 4, "1", rules["Expr"]);
+			tex( "1+1", rules["Expr"]);
+			tex( "1+", rules["Expr"], false);
+			tex( "+", rules["Expr"], false);
+			tex( "1", rules["Expr"]);
 		}
 		// */		
 
