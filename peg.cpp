@@ -173,14 +173,14 @@ namespace peg{
 	function<Sign()> orderedChoice(initializer_list<function<Sign()>> l){ // A / B / C ...
 		return [l]() -> Sign{ return Sign(l, "orderedChoice"); };
 	}
-	Sign optional(function<Sign()> s){ // E?
-		return Sign(s, "optional");
+	function<Sign()> optional(function<Sign()> s){ // E?
+		return [s]() -> Sign{ return Sign(s, "optional"); };
 	}
-	Sign zeroOrMore(function<Sign()> s){ // E*
-		return Sign(s, "zeroOrMore");
+	function<Sign()> zeroOrMore(function<Sign()> s){ // E*
+		return [s]() -> Sign{ return Sign(s, "zeroOrMore"); };
 	}
-	Sign oneOrMore(function<Sign()> s){  // E+
-		return Sign(s, "oneOrMore");
+	function<Sign()> oneOrMore(function<Sign()> s){  // E+
+		return [s]() -> Sign{ return Sign(s, "oneOrMore"); };
 	}
 	Sign andPredicate();
 	Sign notPredicate();
@@ -189,31 +189,30 @@ namespace peg{
 	function<Sign()> Terminal(char v){
 		return [v]() -> Sign{ return Sign(v, "Terminal"); };
 	}
-	Sign Number(){		
-		return Sign("Number");
+	function<Sign()> Number(){		
+		return []() -> Sign{ return Sign("Number"); };
 	}
 
-/*
-	Sign Expr();
+	function<Sign()> Expr();
 
-	Sign Value(){
+	function<Sign()> Value(){
 		cout<<"Exec value\n";
 		return oneOrMore(Number());
 		//return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), Expr(), Terminal(')')})});
 	}
-	Sign Product(){
+	function<Sign()> Product(){
 		cout<<"Exec product\n";
 		return sequence({ Value(), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), Value()}))});
 	}
-	Sign Sum(){
+	function<Sign()> Sum(){
 		cout<<"Exec sum\n";
 		return sequence({ Product(), zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), Value()}))});
 	}
-	Sign Expr(){
+	function<Sign()> Expr(){
 		cout<<"Exec expr\n";
 		return orderedChoice({Sum(),Value()});
 	}
-*/
+	/*
 	map<string, function<Sign()>> rules;
 	void init(){
 		rules["A"] = []()-> Sign{
@@ -228,7 +227,7 @@ namespace peg{
 			return res();
 		};
 	}
-
+	*/
 	void set_source(string s){
 		raw_source_ = s;
 	}
@@ -237,20 +236,19 @@ namespace peg{
 		set_source(n);
 		cursor = 0;
 		cout << "Input:"<< raw_source_ <<"\n";
-		init();
-		return rules["B"]().execution();
-		//return A().execution();
-		//Expr().execution();
+		return Expr()().execution();
+		//return A()().execution();
+		//Expr()().execution();
 	}
 
-/*
+
 	void test(){
 		cout<< "# Test for sequence\n";
 		{
 			cout<<"====== test 1 ======\n";
 			set_source("abcd");
 			cursor = 0;
-			if( sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}).execution() ){
+			if( sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -259,7 +257,7 @@ namespace peg{
 			cout<<"====== test 2 ======\n";
 			set_source("adbc");
 			cursor = 0;
-			if(! sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}).execution() ){
+			if(! sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -268,7 +266,7 @@ namespace peg{
 			cout<<"====== test 3 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( sequence({Terminal('a')}).execution() ){
+			if( sequence({Terminal('a')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -277,7 +275,7 @@ namespace peg{
 			cout<<"====== test 4 ======\n";
 			set_source("");
 			cursor = 0;
-			if(! sequence({Terminal('a')}).execution() ){
+			if(! sequence({Terminal('a')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -288,7 +286,7 @@ namespace peg{
 			cout<<"====== test 5 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( orderedChoice({Terminal('a')}).execution() ){
+			if( orderedChoice({Terminal('a')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -296,7 +294,7 @@ namespace peg{
 			cout<<"====== test 6 ======\n";
 			set_source("a");
 			cursor = 0;
-			if(! orderedChoice({Terminal('b')}).execution() ){
+			if(! orderedChoice({Terminal('b')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -304,7 +302,7 @@ namespace peg{
 			cout<<"====== test 7 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( orderedChoice({Terminal('a'),Terminal('b')}).execution() ){
+			if( orderedChoice({Terminal('a'),Terminal('b')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -312,7 +310,7 @@ namespace peg{
 			cout<<"====== test 8 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( orderedChoice({Terminal('b'),Terminal('a')}).execution() ){
+			if( orderedChoice({Terminal('b'),Terminal('a')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -320,7 +318,7 @@ namespace peg{
 			cout<<"====== test 9 ======\n";
 			set_source("ab");
 			cursor = 0;
-			if( orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})}).execution() ){
+			if( orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -328,7 +326,7 @@ namespace peg{
 			cout<<"====== test 10 ======\n";
 			set_source("ab");
 			cursor = 0;
-			if(! orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})}).execution() ){
+			if(! orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -336,7 +334,7 @@ namespace peg{
 			cout<<"====== test 11 ======\n";
 			set_source("ba");
 			cursor = 0;
-			if( orderedChoice({Terminal('a'),Terminal('b')}).execution() ){
+			if( orderedChoice({Terminal('a'),Terminal('b')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -344,7 +342,7 @@ namespace peg{
 			cout<<"====== test 12 ======\n";
 			set_source("ba");
 			cursor = 0;
-			if( orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}).execution() ){
+			if( orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -355,7 +353,7 @@ namespace peg{
 			cout<<"====== test 13 ======\n";
 			set_source("");
 			cursor = 0;
-			if( optional(Terminal('a')).execution() ){
+			if( optional(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -363,7 +361,7 @@ namespace peg{
 			cout<<"====== test 14 ======\n";
 			set_source("ab");
 			cursor = 0;
-			if( sequence({optional(Terminal('a')), Terminal('b')}).execution() ){
+			if( sequence({optional(Terminal('a')), Terminal('b')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -371,7 +369,7 @@ namespace peg{
 			cout<<"====== test 15 ======\n";
 			set_source("b");
 			cursor = 0;
-			if( sequence({optional(Terminal('a')), Terminal('b')}).execution() ){
+			if( sequence({optional(Terminal('a')), Terminal('b')})().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -379,7 +377,7 @@ namespace peg{
 			cout<<"====== test 16 ======\n";
 			set_source("");
 			cursor = 0;
-			if( optional(Terminal('a')).execution() ){
+			if( optional(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -390,7 +388,7 @@ namespace peg{
 			cout<<"====== test 17 ======\n";
 			set_source("");
 			cursor = 0;
-			if( zeroOrMore(Terminal('a')).execution() ){
+			if( zeroOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -398,7 +396,7 @@ namespace peg{
 			cout<<"====== test 18 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( zeroOrMore(Terminal('a')).execution() ){
+			if( zeroOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -406,7 +404,7 @@ namespace peg{
 			cout<<"====== test 19 ======\n";
 			set_source("aaa");
 			cursor = 0;
-			if( zeroOrMore(Terminal('a')).execution() ){
+			if( zeroOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -414,7 +412,7 @@ namespace peg{
 			cout<<"====== test 20 ======\n";
 			set_source("b");
 			cursor = 0;
-			if( zeroOrMore(Terminal('a')).execution() ){
+			if( zeroOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -425,7 +423,7 @@ namespace peg{
 			cout<<"====== test 21 ======\n";
 			set_source("");
 			cursor = 0;
-			if(! oneOrMore(Terminal('a')).execution() ){
+			if(! oneOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -433,7 +431,7 @@ namespace peg{
 			cout<<"====== test 22 ======\n";
 			set_source("a");
 			cursor = 0;
-			if( oneOrMore(Terminal('a')).execution() ){
+			if( oneOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -441,7 +439,7 @@ namespace peg{
 			cout<<"====== test 23 ======\n";
 			set_source("aaa");
 			cursor = 0;
-			if( oneOrMore(Terminal('a')).execution() ){
+			if( oneOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -449,7 +447,7 @@ namespace peg{
 			cout<<"====== test 24 ======\n";
 			set_source("b");
 			cursor = 0;
-			if(! oneOrMore(Terminal('a')).execution() ){
+			if(! oneOrMore(Terminal('a'))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -460,7 +458,7 @@ namespace peg{
 			cout<<"====== test 1 ======\n";
 			set_source("1+1");
 			cursor = 0;
-			if( sequence({ Number(), Terminal('+'), Number()}).execution()) {
+			if( sequence({ Number(), Terminal('+'), Number()})().execution()) {
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -469,7 +467,7 @@ namespace peg{
 			cout<<"====== test 2 ======\n";
 			set_source("1234+1");
 			cursor = 0;
-			if( sequence({ oneOrMore(Number()), Terminal('+'), Number()}).execution()) {
+			if( sequence({ oneOrMore(Number()), Terminal('+'), Number()})().execution()) {
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -478,7 +476,7 @@ namespace peg{
 			cout<<"====== test 3 ======\n";
 			set_source("1234+5678");
 			cursor = 0;
-			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}).execution()) {
+			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -487,7 +485,7 @@ namespace peg{
 			cout<<"====== test 4 ======\n";
 			set_source("-1234+5678");
 			cursor = 0;
-			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}).execution()) {
+			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -495,6 +493,5 @@ namespace peg{
 		}
 
 	}
- */
 
 };
