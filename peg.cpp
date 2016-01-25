@@ -269,18 +269,22 @@ namespace peg{
 	}
 
 
+	bool tex(string code, function<Sign()> c){
+		cursor = 0;
+		if( c().execution() ){
+			cout << "\x1b[32mPassed!\x1b[39m\n";
+			return true;
+		}else{
+			cout << "\033[1;31mFaild\033[0m\n";
+			return false;
+		}
+	}
 	void test(){
 		cout<< "# Test for sequence\n";
 		{
 			cout<<"====== test 1 ======\n";
-			set_source("abcd");
-			cursor = 0;
-			if( sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
+			tex("abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
+			
 			cout<<"====== test 2 ======\n";
 			set_source("adbc");
 			cursor = 0;
