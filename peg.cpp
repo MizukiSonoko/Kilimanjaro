@@ -50,14 +50,14 @@ namespace peg{
 	}
 
 	class Sign{
-		vector<Sign> rules;
+		vector<function<Sign()>> rules;
 	public:
 		char value;
 		string type;
-		Sign(initializer_list<Sign> l,string t):rules(l){
+		Sign(initializer_list<function<Sign()>> l,string t):rules(l){
 			type = t;
-		}
-		Sign(Sign s,string t): rules({s}){
+		}		
+		Sign(function<Sign()> s,string t): rules({s}){
 			type = t;
 		}
 		Sign(char v, string t){
@@ -75,15 +75,15 @@ namespace peg{
 				mark();
 				cout<< "--- sequence! ---\n";
 				for(auto r : rules){
-					if(r.type == "Terminal"){
-						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r.value<< endl;
-						if(raw_source_[cursor] != r.value){
+					if(r().type == "Terminal"){
+						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r().value<< endl;
+						if(raw_source_[cursor] != r().value){
 							back();
 							return false;
 						}
 						cursor++;
 					}else{
-						if(!r.execution()){
+						if(!r().execution()){
 							back();
 							return false;
 						}
@@ -94,14 +94,14 @@ namespace peg{
 				mark();
 				cout<< "--- orderedChoice! ---\n";		
 				for(auto r : rules){
-					if(r.type == "Terminal"){
-						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r.value<< endl;
-						if(raw_source_[cursor] == r.value){
+					if(r().type == "Terminal"){
+						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r().value<< endl;
+						if(raw_source_[cursor] == r().value){
 							cursor++;
 							return true;
 						}
 					}else{
-						if(r.execution()){
+						if(r().execution()){
 							return true;
 						}
 					}					
@@ -111,8 +111,8 @@ namespace peg{
 			}else if(type == "optional"){
 				mark();
 				cout<< "--- optional! ---\n";
-				cout<< "optional "<<raw_source_[cursor]<<" "<<rules[0].value<< endl;
-				if(rules[0].value == raw_source_[cursor]){
+				cout<< "optional "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;
+				if(rules[0]().value == raw_source_[cursor]){
 					cursor++;
 					return true;
 				}
@@ -122,8 +122,8 @@ namespace peg{
 				mark();
 				cout<< "--- zeroOrMore! ---\n";
 				bool ok = false;
-				while(rules[0].value == raw_source_[cursor]){
-					cout<< "zeroOrMore "<<raw_source_[cursor]<<" "<<rules[0].value<< endl;			
+				while(rules[0]().value == raw_source_[cursor]){
+					cout<< "zeroOrMore "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;			
 					cursor++;
 					ok = true;
 				}
@@ -135,14 +135,14 @@ namespace peg{
 				mark();
 				cout<< "--- oneOrMore! ---\n";
 				bool ok = false;
-				if(rules[0].type == "Terminal"){
-					while(rules[0].value == raw_source_[cursor]){
-						cout<< "oneOrMore "<<raw_source_[cursor]<<" "<<rules[0].value<< endl;			
+				if(rules[0]().type == "Terminal"){
+					while(rules[0]().value == raw_source_[cursor]){
+						cout<< "oneOrMore "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;			
 						cursor++;
 						ok = true;
 					}
 				}else{
-					while(rules[0].execution()){
+					while(rules[0]().execution()){
 						ok = true;
 						cursor++;
 					}
@@ -166,32 +166,34 @@ namespace peg{
 		}
 	};
 
-	Sign sequence(initializer_list<Sign> l){ // A B C ...
-		return Sign(l, "sequence");
+	function<Sign()> sequence(initializer_list<function<Sign()>> l){ // A B C ...
+		return [l]() -> Sign{ return Sign(l, "sequence"); };
 	}
-	Sign orderedChoice(initializer_list<Sign> l){ // A / B / C ...
-		return Sign(l, "orderedChoice");
+
+	function<Sign()> orderedChoice(initializer_list<function<Sign()>> l){ // A / B / C ...
+		return [l]() -> Sign{ return Sign(l, "orderedChoice"); };
 	}
-	Sign optional(Sign s){ // E?
+	Sign optional(function<Sign()> s){ // E?
 		return Sign(s, "optional");
 	}
-	Sign zeroOrMore(Sign s){ // E*
+	Sign zeroOrMore(function<Sign()> s){ // E*
 		return Sign(s, "zeroOrMore");
 	}
-	Sign oneOrMore(Sign s){  // E+
+	Sign oneOrMore(function<Sign()> s){  // E+
 		return Sign(s, "oneOrMore");
 	}
 	Sign andPredicate();
 	Sign notPredicate();
 	Sign endOfString();
 
-	Sign Terminal(char v){
-		return Sign(v, "Terminal");
+	function<Sign()> Terminal(char v){
+		return [v]() -> Sign{ return Sign(v, "Terminal"); };
 	}
 	Sign Number(){		
 		return Sign("Number");
 	}
 
+/*
 	Sign Expr();
 
 	Sign Value(){
@@ -211,27 +213,19 @@ namespace peg{
 		cout<<"Exec expr\n";
 		return orderedChoice({Sum(),Value()});
 	}
-
+*/
 	map<string, function<Sign()>> rules;
-	map<string, Sign> visited;
 	void init(){
-
-		rules["A"] = []() -> Sign{
+		rules["A"] = []()-> Sign{
 			cout<<"call A\n";
-			if(visited.find("A") != visited.end())
-				return visited["A"];
-			Sign res = sequence({ Terminal('-'), rules["A"]() });
-			visited["A"] = res;
-			return res;
+			auto res = sequence({ Terminal('-'), rules["A"] });
+			return res();
 		};
 
-		rules["B"] = []() -> Sign{
+		rules["B"] = []()-> Sign{
 			cout<<"call B\n";
-			if(visited.find("B") != visited.end())
-				return visited["B"];
-			Sign res = orderedChoice({sequence({Terminal('-'),rules["B"]()}), Terminal('.')});
-			visited["B"] = res;
-			return res;
+			auto res = orderedChoice({sequence({Terminal('-'),rules["B"] }), Terminal('.')});
+			return res();
 		};
 	}
 
@@ -249,7 +243,7 @@ namespace peg{
 		//Expr().execution();
 	}
 
-
+/*
 	void test(){
 		cout<< "# Test for sequence\n";
 		{
@@ -501,6 +495,6 @@ namespace peg{
 		}
 
 	}
- 
+ */
 
 };
