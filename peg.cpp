@@ -71,39 +71,32 @@ namespace peg{
 		Sign(){
 			type = "";
 		}
-		bool execution(){
+		int execution(){
 			if(type == "sequence"){
-				max_cursor = cursor;
-				bool first = false;
+				int start = cursor;
 				mark();				
 				#ifdef DEBUG
 				cout<< "--- sequence! "<< raw_source_[cursor]<<"---\n";
 				#endif
 				for(auto r : rules){
 					if(r().type == "Terminal"){
-						#ifdef DEBUG
-						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r().value<< endl;
-						#endif
-						if(raw_source_[cursor] != r().value){
-							max_cursor = cursor;
-							back();
-							return false;
+						if(raw_source_[cursor] == r().value){
+							cursor++;
 						}
-						cursor++;
-						first = true;
 					}else{
-						if(!r().execution()){
-							max_cursor = cursor;
-							back();
-							return false;
+						if(r().execution()){
+							cursor++;
 						}
-						first = true;
 					}
 				}
-				if(first)
-					return true;
-
-				return false;
+				if(rules.size() == cursor - start)
+					return 1;
+				if(start == cursor){
+					back();
+					return 0;
+				}
+				back();
+				return -1;
 
 			}else if(type == "orderedChoice"){
 				#ifdef DEBUG
@@ -294,11 +287,12 @@ namespace peg{
 		cout<<"    - test "<<test_counter<< "\n";
 		cursor = 0;
 		set_source(code);
-		if(!(c().execution() ^ correct)){
-			cout << "     \x1b[32m"<< test_counter <<" ["<<code<<"] is Passed!\x1b[39m\n";
+		auto res = c().execution();
+		if(!((res > 0) ^ correct)){
+			cout << "     \x1b[32m"<< test_counter <<" ["<<code<<"] is Passed! ("<<res<<") \x1b[39m\n";
 			return true;
 		}else{
-			cout << "     \033[1;31m"<< test_counter <<" ["<<code<<"] is Faild\033[0m\n";
+			cout << "     \033[1;31m"<< test_counter <<" ["<<code<<"] is Faild ("<<res<<") \033[0m\n";
 			return false;
 		}
 	}
@@ -308,11 +302,13 @@ namespace peg{
 			test_counter = 0;
 			tex( "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
 			tex( "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
+			tex( "abd",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
 			tex( "a", sequence({Terminal('a')}));
 			tex( "b", sequence({Terminal('a')}), false);
 			tex( "", sequence({Terminal('a')}), false);
 		}
 		// */
+		/*
 		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
 		{
 			test_counter = 0;
@@ -327,6 +323,7 @@ namespace peg{
 			tex( "_", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}), false);
 		}
 		// */
+		/*
 		cout<< "\e[96m# Test for optional\033[0m\n";
 		{
 			test_counter = 0;
@@ -335,7 +332,7 @@ namespace peg{
 			tex( "b", sequence({optional(Terminal('a')), Terminal('b')}));
 		}
 		// */
-		
+		/*
 		cout<< "\e[96m# Test for zeroOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -349,7 +346,7 @@ namespace peg{
 			tex( "c", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
-		
+		/*
 		cout<< "\e[96m# Test for oneOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -363,7 +360,7 @@ namespace peg{
 			tex( "a+", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		// */
-		
+		/*		
 		cout<< "\e[96m# Test for mix\033[0m\n";
 		{
 			test_counter = 0;
@@ -376,14 +373,15 @@ namespace peg{
 			tex( "1234", sequence({ optional(Terminal('-')), oneOrMore(Number()) }));
 			tex( "1+", sequence({ Terminal('1'), oneOrMore(sequence({Terminal('*'),Terminal('1')}))}), false);
 			tex( "+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
+			tex( "12123",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}));
+			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 		}
 		// */
-		
+		/*		
 		cout<< "\e[96m# Test for calculator\033[0m\n";
 		{
 			test_counter = 0;
 			init();
-			/*
 			tex( "1+1", rules["Expr"]);
 			tex( "1+", rules["Expr"], false);
 			tex( "+", rules["Expr"], false);
@@ -394,7 +392,6 @@ namespace peg{
 			tex( "_", rules["Product"], false);
 			tex( "1_", rules["Product"], false);
 			tex( "1_1", rules["Product"], false);
-			*/
 		}
 		// */
 	}
