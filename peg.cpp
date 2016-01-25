@@ -13,6 +13,8 @@ namespace peg{
 	string raw_rule_;
 	string raw_source_;
 
+	void log(string s);
+
 	string load_file(string filename){
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
 		if(ifs.fail()){
@@ -40,12 +42,10 @@ namespace peg{
 	stack<int> markers;
 	
 	void mark(){
-		cout << "push "<<cursor <<endl;
 		markers.push(cursor);
 	}
 	void back(){
 		cursor = markers.top();
-		cout << "pop "<<cursor <<endl;
 		markers.pop();
 	}
 
@@ -269,349 +269,80 @@ namespace peg{
 	}
 
 
-	bool tex(string code, function<Sign()> c){
+	bool tex(int num, string code, function<Sign()> c,bool correct = true){
+		cout<<"====== test "<<num<< " ======\n";
 		cursor = 0;
-		if( c().execution() ){
-			cout << "\x1b[32mPassed!\x1b[39m\n";
+		set_source(code);
+		if(!(c().execution() ^ correct)){
+			cout << "\x1b[32m"<< num <<" is Passed!\x1b[39m\n";
 			return true;
 		}else{
-			cout << "\033[1;31mFaild\033[0m\n";
+			cout << "\033[1;31m"<< num <<" is Faild\033[0m\n";
 			return false;
 		}
 	}
 	void test(){
 		cout<< "# Test for sequence\n";
 		{
-			cout<<"====== test 1 ======\n";
-			tex("abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
-			
-			cout<<"====== test 2 ======\n";
-			set_source("adbc");
-			cursor = 0;
-			if(! sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 3 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( sequence({Terminal('a')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 4 ======\n";
-			set_source("");
-			cursor = 0;
-			if(! sequence({Terminal('a')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
+			tex( 1, "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
+			tex( 2, "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
+			tex( 3, "a", sequence({Terminal('a')}));
+			tex( 4, "", sequence({Terminal('a')}), false);
 		}
 		cout<< "# Test for orderedChoice\n";
 		{
-			cout<<"====== test 5 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( orderedChoice({Terminal('a')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 6 ======\n";
-			set_source("a");
-			cursor = 0;
-			if(! orderedChoice({Terminal('b')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 7 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( orderedChoice({Terminal('a'),Terminal('b')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 8 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( orderedChoice({Terminal('b'),Terminal('a')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 9 ======\n";
-			set_source("ab");
-			cursor = 0;
-			if( orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 10 ======\n";
-			set_source("ab");
-			cursor = 0;
-			if(! orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 11 ======\n";
-			set_source("ba");
-			cursor = 0;
-			if( orderedChoice({Terminal('a'),Terminal('b')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}	
-			cout<<"====== test 12 ======\n";
-			set_source("ba");
-			cursor = 0;
-			if( orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}		
+			tex( 1, "a", orderedChoice({Terminal('a')}));
+			tex( 2, "a", orderedChoice({Terminal('b')}), false);
+			tex( 3, "a", orderedChoice({Terminal('a'),Terminal('b')}));
+			tex( 4, "a", orderedChoice({Terminal('b'),Terminal('a')}));
+			tex( 5, "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})}));
+			tex( 6, "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})}), false);
+			tex( 7, "ba", orderedChoice({Terminal('a'),Terminal('b')}));
+			tex( 8, "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}));
 		}
 		cout<< "# Test for optional\n";
 		{
-			cout<<"====== test 13 ======\n";
-			set_source("");
-			cursor = 0;
-			if( optional(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}	
-			cout<<"====== test 14 ======\n";
-			set_source("ab");
-			cursor = 0;
-			if( sequence({optional(Terminal('a')), Terminal('b')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 15 ======\n";
-			set_source("b");
-			cursor = 0;
-			if( sequence({optional(Terminal('a')), Terminal('b')})().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 16 ======\n";
-			set_source("");
-			cursor = 0;
-			if( optional(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
+			tex( 1, "", optional(Terminal('a')));
+			tex( 2, "ab", sequence({optional(Terminal('a')), Terminal('b')}));
+			tex( 3, "b", sequence({optional(Terminal('a')), Terminal('b')}));
 		}
 		cout<< "# Test for zeroOrMore\n";
 		{
-			cout<<"====== test 1 ======\n";
-			set_source("");
-			cursor = 0;
-			if( zeroOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 2 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( zeroOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 3 ======\n";
-			set_source("aaa");
-			cursor = 0;
-			if( zeroOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 4 ======\n";
-			set_source("b");
-			cursor = 0;
-			if( zeroOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 5 ======\n";
-			set_source("ab");
-			cursor = 0;
-			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 6 ======\n";
-			set_source("");
-			cursor = 0;
-			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 7 ======\n";
-			set_source("c");
-			cursor = 0;
-			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
+			tex( 1, "", zeroOrMore(Terminal('a')));
+			tex( 2, "a", zeroOrMore(Terminal('a')));
+			tex( 3, "aaaa", zeroOrMore(Terminal('a')));
+			tex( 4, "b", zeroOrMore(Terminal('a')));
+			tex( 5, "ab", zeroOrMore(Terminal('a')));
+			tex( 6, "", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( 7, "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
 		}
 
 		cout<< "# Test for oneOrMore\n";
 		{
-			cout<<"====== test 1 ======\n";
-			set_source("");
-			cursor = 0;
-			if(! oneOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 2 ======\n";
-			set_source("a");
-			cursor = 0;
-			if( oneOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 3 ======\n";
-			set_source("aaa");
-			cursor = 0;
-			if( oneOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 4 ======\n";
-			set_source("b");
-			cursor = 0;
-			if(! oneOrMore(Terminal('a'))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 5 ======\n";
-			set_source("ab");
-			cursor = 0;
-			if( oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 6 ======\n";
-			set_source("ababab");
-			cursor = 0;
-			if( oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}			
-			cout<<"====== test 7 ======\n";
-			set_source("a");
-			cursor = 0;
-			if(! oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
+			tex( 1, "", oneOrMore(Terminal('a')), false);
+			tex( 2, "a", oneOrMore(Terminal('a')));
+			tex( 3, "aaaa", oneOrMore(Terminal('a')));
+			tex( 4, "b", oneOrMore(Terminal('a')), false);
+			tex( 5, "ab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( 6, "ababab", oneOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( 7, "a", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		cout<< "# Test for mix\n";
 		{
-			cout<<"====== test 1 ======\n";
-			set_source("1+1");
-			cursor = 0;
-			if( sequence({ Number(), Terminal('+'), Number()})().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 2 ======\n";
-			set_source("1234+1");
-			cursor = 0;
-			if( sequence({ oneOrMore(Number()), Terminal('+'), Number()})().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 3 ======\n";
-			set_source("1234+5678");
-			cursor = 0;
-			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-
-			cout<<"====== test 4 ======\n";
-			set_source("-1234+5678");
-			cursor = 0;
-			if( sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}			
-
-			cout<<"====== test 5 ======\n";
-			set_source("1234+");
-			cursor = 0;
-			if(! sequence({ oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}					
+			tex( 1,"1+1", sequence({ Number(), Terminal('+'), Number()}));
+			tex( 2,"1234+1", sequence({ oneOrMore(Number()), Terminal('+'), Number()}));
+			tex( 3,"1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
+			tex( 4,"1234+", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
+			tex( 5,"-1234+5678", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
+			tex( 6,"+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
 		}
 		cout<< "# Test for calculator\n";
 		{
 			init();
-			cout<<"====== test 1 ======\n";
-			set_source("1+1");
-			cursor = 0;
-			if( rules["Expr"]().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 2 ======\n";
-			set_source("1+");
-			cursor = 0;
-			if(! rules["Expr"]().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-			cout<<"====== test 3 ======\n";
-			set_source("1+");
-			cursor = 0;
-			if(! rules["Expr"]().execution()) {
-				cout << "\x1b[32mPassed!\x1b[39m\n";
-			}else{
-				cout << "\033[1;31mFaild\033[0m\n";
-			}
-					
-
+			tex( 1, "1+1", rules["Expr"]);
+			tex( 2, "1+", rules["Expr"], false);
+			tex( 3, "+", rules["Expr"], false);
+			tex( 4, "1", rules["Expr"]);
 		}
 
 	}
