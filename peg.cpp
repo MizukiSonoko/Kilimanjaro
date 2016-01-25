@@ -4,6 +4,9 @@
 #include <stack>
 #include <vector>
 
+#include <functional>
+#include <map>
+
 namespace peg{
 	using namespace std;
 
@@ -207,6 +210,15 @@ namespace peg{
 		return orderedChoice({Sum(),Value()});
 	}
 
+	Sign B();
+
+
+
+	Sign B(){
+		cout<<"call B\n";
+		return sequence({Terminal('+'), A()});
+	}
+
 	void set_source(string s){
 		raw_source_ = s;
 	}
@@ -215,7 +227,7 @@ namespace peg{
 		set_source(n);
 		cursor = 0;
 		cout << "Input:"<< raw_source_ <<"\n";
-		return Expr().execution();
+		return A().execution();
 		//Expr().execution();
 	}
 
