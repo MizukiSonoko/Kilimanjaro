@@ -89,6 +89,7 @@ namespace peg{
 						}
 					}
 				}
+				cout<<"sequence success!\n";
 				return true;
 			}else if(type == "orderedChoice"){
 				mark();
@@ -122,12 +123,27 @@ namespace peg{
 				mark();
 				cout<< "--- zeroOrMore! ---\n";
 				bool ok = false;
-				while(rules[0]().value == raw_source_[cursor]){
-					cout<< "zeroOrMore "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;			
-					cursor++;
-					ok = true;
-				}
-				if(!ok){
+				bool first = false;
+				do{
+					ok = false;
+					for(auto r : rules){
+						if(r().type == "Terminal"){
+							cout<< "Terminal "<<raw_source_[cursor]<<" "<<r().value<< endl;
+							if(raw_source_[cursor] == r().value){
+								ok = true;
+								cursor++;
+							}
+						}else{
+							if(r().execution()){
+								ok = true;
+							}
+						}
+					}					
+					if(ok)
+						first = true;
+				}while(ok);
+
+				if(!first){
 					back();
 				}
 				return true;
@@ -135,25 +151,32 @@ namespace peg{
 				mark();
 				cout<< "--- oneOrMore! ---\n";
 				bool ok = false;
-				if(rules[0]().type == "Terminal"){
-					while(rules[0]().value == raw_source_[cursor]){
-						cout<< "oneOrMore "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;			
-						cursor++;
-						ok = true;
+				bool first = false;
+				do{
+					ok = false;
+					for(auto r : rules){
+						if(r().type == "Terminal"){
+							cout<< "Terminal ["<<raw_source_[cursor]<<","<<r().value<<"]"<< endl;
+							if(raw_source_[cursor] == r().value){
+								ok = true;
+								cursor++;
+							}
+						}else{
+							if(r().execution()){
+								ok = true;
+							}
+						}
 					}
-				}else{
-					while(rules[0]().execution()){
-						ok = true;
-						cursor++;
-					}
-				}
-				if(!ok){
+					if(ok)
+						first = true;		
+				}while(ok);
+
+				if(!first){
 					back();
 					cursor--;
 					return false;
-				}else{
-					return true;
 				}
+				return true;
 			}else if(type == "Number"){
 				cout<< "Number "<<raw_source_[cursor]<< endl;	
 				if('0' <= raw_source_[cursor] && raw_source_[cursor] <= '9'){
@@ -193,24 +216,27 @@ namespace peg{
 		return []() -> Sign{ return Sign("Number"); };
 	}
 
-	function<Sign()> Expr();
 
-	function<Sign()> Value(){
-		cout<<"Exec value\n";
-		return oneOrMore(Number());
-		//return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), Expr(), Terminal(')')})});
-	}
-	function<Sign()> Product(){
-		cout<<"Exec product\n";
-		return sequence({ Value(), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), Value()}))});
-	}
-	function<Sign()> Sum(){
-		cout<<"Exec sum\n";
-		return sequence({ Product(), zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), Value()}))});
-	}
-	function<Sign()> Expr(){
-		cout<<"Exec expr\n";
-		return orderedChoice({Sum(),Value()});
+	map<string, function<Sign()>> rules;
+	void init(){
+
+		rules["Value"] = []()-> Sign{
+			cout<<"Exec value\n";
+			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
+		};
+
+		rules["Product"] = []()-> Sign{
+			cout<<"Exec product\n";
+			return sequence({ rules["Value"], zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), rules["Value"]}))})();
+		};
+		rules["Sum"] = []()-> Sign{
+			cout<<"Exec sum\n";
+			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
+		};
+		rules["Expr"] = []()-> Sign{
+			cout<<"Exec expr\n";
+			return rules["Sum"]();
+		};
 	}
 	/*
 	map<string, function<Sign()>> rules;
@@ -236,7 +262,8 @@ namespace peg{
 		set_source(n);
 		cursor = 0;
 		cout << "Input:"<< raw_source_ <<"\n";
-		return Expr()().execution();
+		init();
+		return rules["Expr"]().execution();
 		//return A()().execution();
 		//Expr()().execution();
 	}
@@ -385,7 +412,7 @@ namespace peg{
 		}
 		cout<< "# Test for zeroOrMore\n";
 		{
-			cout<<"====== test 17 ======\n";
+			cout<<"====== test 1 ======\n";
 			set_source("");
 			cursor = 0;
 			if( zeroOrMore(Terminal('a'))().execution() ){
@@ -393,7 +420,7 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 18 ======\n";
+			cout<<"====== test 2 ======\n";
 			set_source("a");
 			cursor = 0;
 			if( zeroOrMore(Terminal('a'))().execution() ){
@@ -401,7 +428,7 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 19 ======\n";
+			cout<<"====== test 3 ======\n";
 			set_source("aaa");
 			cursor = 0;
 			if( zeroOrMore(Terminal('a'))().execution() ){
@@ -409,7 +436,7 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 20 ======\n";
+			cout<<"====== test 4 ======\n";
 			set_source("b");
 			cursor = 0;
 			if( zeroOrMore(Terminal('a'))().execution() ){
@@ -417,10 +444,38 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
+			cout<<"====== test 5 ======\n";
+			set_source("ab");
+			cursor = 0;
+			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+
+			cout<<"====== test 6 ======\n";
+			set_source("");
+			cursor = 0;
+			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+
+			cout<<"====== test 7 ======\n";
+			set_source("c");
+			cursor = 0;
+			if( zeroOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+
 		}
+
 		cout<< "# Test for oneOrMore\n";
 		{
-			cout<<"====== test 21 ======\n";
+			cout<<"====== test 1 ======\n";
 			set_source("");
 			cursor = 0;
 			if(! oneOrMore(Terminal('a'))().execution() ){
@@ -428,7 +483,7 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 22 ======\n";
+			cout<<"====== test 2 ======\n";
 			set_source("a");
 			cursor = 0;
 			if( oneOrMore(Terminal('a'))().execution() ){
@@ -436,7 +491,7 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 23 ======\n";
+			cout<<"====== test 3 ======\n";
 			set_source("aaa");
 			cursor = 0;
 			if( oneOrMore(Terminal('a'))().execution() ){
@@ -444,10 +499,34 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}
-			cout<<"====== test 24 ======\n";
+			cout<<"====== test 4 ======\n";
 			set_source("b");
 			cursor = 0;
 			if(! oneOrMore(Terminal('a'))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+			cout<<"====== test 5 ======\n";
+			set_source("ab");
+			cursor = 0;
+			if( oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+			cout<<"====== test 6 ======\n";
+			set_source("ababab");
+			cursor = 0;
+			if( oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}			
+			cout<<"====== test 7 ======\n";
+			set_source("a");
+			cursor = 0;
+			if(! oneOrMore(sequence({Terminal('a'),Terminal('b')}))().execution() ){
 				cout << "\x1b[32mPassed!\x1b[39m\n";
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
@@ -490,6 +569,45 @@ namespace peg{
 			}else{
 				cout << "\033[1;31mFaild\033[0m\n";
 			}			
+
+			cout<<"====== test 5 ======\n";
+			set_source("1234+");
+			cursor = 0;
+			if(! sequence({ oneOrMore(Number()), Terminal('+'), oneOrMore(Number())})().execution()) {
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}					
+		}
+		cout<< "# Test for calculator\n";
+		{
+			init();
+			cout<<"====== test 1 ======\n";
+			set_source("1+1");
+			cursor = 0;
+			if( rules["Expr"]().execution()) {
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+			cout<<"====== test 2 ======\n";
+			set_source("1+");
+			cursor = 0;
+			if(! rules["Expr"]().execution()) {
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+			cout<<"====== test 3 ======\n";
+			set_source("1+");
+			cursor = 0;
+			if(! rules["Expr"]().execution()) {
+				cout << "\x1b[32mPassed!\x1b[39m\n";
+			}else{
+				cout << "\033[1;31mFaild\033[0m\n";
+			}
+					
+
 		}
 
 	}
