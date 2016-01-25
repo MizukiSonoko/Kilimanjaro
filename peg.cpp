@@ -67,7 +67,9 @@ namespace peg{
 		Sign(string t){
 			type = t;
 		}
-
+		Sign(){
+			type = "";
+		}
 		bool execution(){
 			if(type == "sequence"){
 				mark();
@@ -210,13 +212,27 @@ namespace peg{
 		return orderedChoice({Sum(),Value()});
 	}
 
-	Sign B();
+	map<string, function<Sign()>> rules;
+	map<string, Sign> visited;
+	void init(){
 
+		rules["A"] = []() -> Sign{
+			cout<<"call A\n";
+			if(visited.find("A") != visited.end())
+				return visited["A"];
+			Sign res = sequence({ Terminal('-'), rules["A"]() });
+			visited["A"] = res;
+			return res;
+		};
 
-
-	Sign B(){
-		cout<<"call B\n";
-		return sequence({Terminal('+'), A()});
+		rules["B"] = []() -> Sign{
+			cout<<"call B\n";
+			if(visited.find("B") != visited.end())
+				return visited["B"];
+			Sign res = orderedChoice({sequence({Terminal('-'),rules["B"]()}), Terminal('.')});
+			visited["B"] = res;
+			return res;
+		};
 	}
 
 	void set_source(string s){
@@ -227,7 +243,9 @@ namespace peg{
 		set_source(n);
 		cursor = 0;
 		cout << "Input:"<< raw_source_ <<"\n";
-		return A().execution();
+		init();
+		return rules["B"]().execution();
+		//return A().execution();
 		//Expr().execution();
 	}
 
