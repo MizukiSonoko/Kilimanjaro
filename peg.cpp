@@ -171,39 +171,32 @@ namespace peg{
 					return 1;
 				}
 			}else if(type == "oneOrMore"){
-				mark();
+				mark();	
 				#ifdef DEBUG
-				cout<< "--- oneOrMore! ---\n";
+				cout<< "--- oneOrMore! "<< rules[0]().type <<" ---\n";
 				#endif
-				bool ok = false;
-				bool first = false;
-				do{
-					ok = false;
-					for(auto r : rules){
-						if(r().type == "Terminal"){
-							#ifdef DEBUG
-							cout<< "Terminal ["<<raw_source_[cursor]<<","<<r().value<<"]"<< endl;
-							#endif
-							if(raw_source_[cursor] == r().value){
-								ok = true;
-							}
-							cursor++;
-						}else{
-							if(r().execution()){
-								ok = true;
-							}
-						}
+				auto sign = rules[0]();
+				bool none = true;
+				if(sign.type == "Terminal"){
+					while(raw_source_[cursor] == sign.value){
+						cursor++;
+						none = false;
 					}
-					if(ok)
-						first = true;		
-				}while(ok);
-
-				if(!first){
-					back();
-					cursor--;
-					return false;
+					if(none)
+						return 0;
+					return 1;
+				}else{
+					int res = sign.execution();
+					while(res == 1){
+						none = false;
+						res = sign.execution();
+						cout << " res: "<< res<< endl;
+					}
+					if(none)
+						return 0;
+					return 1;
 				}
-				return true;
+
 			}else if(type == "Number"){
 				#ifdef DEBUG
 				cout<< "Number "<<raw_source_[cursor]<< endl;	
@@ -310,6 +303,7 @@ namespace peg{
 		{
 			test_counter = 0;
 			tex( "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
+			tex( "ab", sequence({Terminal('a'),Terminal('b')}));
 			tex( "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
 			tex( "abd",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
 			tex( "a", sequence({Terminal('a')}));
@@ -363,7 +357,7 @@ namespace peg{
 			tex( "c", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
-		/*
+		
 		cout<< "\e[96m# Test for oneOrMore\033[0m\n";
 		{
 			test_counter = 0;
