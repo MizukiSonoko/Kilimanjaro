@@ -83,7 +83,6 @@ namespace peg{
 				#ifdef DEBUG
 				cout<< "--- sequence! ["<< raw_source_[cursor]<<"]---\n";
 				#endif
-
 				for(auto r : rules){
 					if(r().type == "Terminal"){
 						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< r().value <<"---\n";
@@ -98,7 +97,6 @@ namespace peg{
 						}
 					}			
 				}
-				cout << num_rule << " ^^ " << seq_cursor <<" * "<< start <<  endl;
 				if(num_rule == seq_cursor){
 					cout << "seq success return 1\n";
 					return 1;
@@ -110,7 +108,7 @@ namespace peg{
 					return 0;
 				}
 				back();				
-				cout<< "seq faild return -1"<< cursor<<"\n";
+				cout<< "seq faild return -1 ("<< cursor<<")\n";
 				return -1;
 			}else if(type == "orderedChoice"){
 				#ifdef DEBUG
@@ -283,19 +281,28 @@ namespace peg{
 	int count = 0;
 	map<string, function<Sign()>> rules;
 	void init(){
-		rules["A"] = []()-> Sign{
-			if(count > 100) exit(1);
-			cout<<"Exec A\n";
-			count++;
-			return sequence({optional(sequence({Terminal('a'),Terminal('b')})), rules["Expr"]})();
+
+		rules["Product"] = []()-> Sign{
+			cout<<"Exec product\n";
+			return sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))})();
+		};
+		rules["Sum"] = []()-> Sign{
+			cout<<"Exec sum\n";
+			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
 		};
 		rules["Expr"] = []()-> Sign{
 			cout<<"Exec expr\n";
+			return rules["Sum"]();
+		};
+
+		rules["A"] = []()-> Sign{			
+			cout<<"Exec A\n";
 			count++;
-			return orderedChoice({Terminal('a'), rules["A"]})();
+			return sequence({optional(sequence({Terminal('a'),Terminal('b')})), sequence({ Terminal('b'), rules["Expr"] }) })();
 		};
 
 		rules["S"] = []()-> Sign{
+			if(count > 5) exit(1);
 			return sequence({rules["Expr"], endOfString()})();
 		};
 /*
@@ -442,16 +449,27 @@ namespace peg{
 			tex( "123",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}));
 			tex( "1212",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')}))}));
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
+
+			function<Sign()> P = sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
+			// []()-> function<Sign()>{
+			//	return sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
+			//};
+
+			//tex( "1*1", sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))}));
+			//tex( "1*1", P);
+			tex( "1*1", P);
+
+			//matex( "123*456", sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))}));
 		}
 		// */
-		
+		/*
 		cout<< "\e[96m# Test for calculator\033[0m\n";
 		{
 			test_counter = 0;
 			init();
 			tex( "1+1", rules["S"]);
-			tex( "1+", rules["S"], false);
-			tex( "+", rules["S"], false);
+			tex( "123+456", rules["S"], false);
+			tex( "1*3", rules["S"], false);
 
 		}
 		// */
