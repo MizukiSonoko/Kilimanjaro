@@ -93,8 +93,10 @@ namespace peg{
 					}
 				}
 				cout << num_rule << " ^^ " << seq_cursor <<  endl;
-				if(num_rule == seq_cursor)
+				if(num_rule == seq_cursor){
+					cout << "success\n";
 					return 1;
+				}
 				if(start == seq_cursor){
 					back();
 					return 0;
@@ -114,9 +116,8 @@ namespace peg{
 						}
 					}else{
 						auto res = r().execution();
-						cout<< "res:"<< res << endl;
 						if(res == 1){ 
-							return r().rules.size();
+							return 1;
 						}
 					}
 					back();
@@ -326,6 +327,7 @@ namespace peg{
 			tex( "ba", orderedChoice({Terminal('a'),Terminal('b')}), false);
 			tex( "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}), false);
 			tex( "_", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}), false);
+			tex( "abe", orderedChoice({sequence({Terminal('a'),Terminal('b'),Terminal('c')}),sequence({Terminal('a'),Terminal('b'),Terminal('d')})}), false);
 		}
 		// */
 		/*
