@@ -124,17 +124,23 @@ namespace peg{
 				}
 				return 0;
 			}else if(type == "optional"){
-				mark();
 				#ifdef DEBUG
 				cout<< "--- optional! ---\n";
 				cout<< "optional "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;
 				#endif
-				if(rules[0]().value == raw_source_[cursor]){
-					cursor++;
-					return true;
+				auto sign = rules[0]();
+				if(sign.type == "Terminal"){
+					if(raw_source_[cursor] == sign.value){
+						cursor++;
+						return 1;
+					}
+				}else{
+					auto res = sign.execution();
+					if(res == -1){
+						return res;
+					}
 				}
-				back();
-				return true;
+				return 1;
 			}else if(type == "zeroOrMore"){
 				mark();	
 				#ifdef DEBUG
@@ -330,13 +336,19 @@ namespace peg{
 			tex( "abe", orderedChoice({sequence({Terminal('a'),Terminal('b'),Terminal('c')}),sequence({Terminal('a'),Terminal('b'),Terminal('d')})}), false);
 		}
 		// */
-		/*
+		
 		cout<< "\e[96m# Test for optional\033[0m\n";
 		{
 			test_counter = 0;
 			tex( "", optional(Terminal('a')));
 			tex( "ab", sequence({optional(Terminal('a')), Terminal('b')}));
 			tex( "b", sequence({optional(Terminal('a')), Terminal('b')}));
+			tex( "a", sequence({optional(Terminal('a')), Terminal('b')}), false);
+			tex( "abc", sequence({optional(Terminal('a')), Terminal('b')}), false);
+			tex( "c", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
+			tex( "abc", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
+			tex( "ac", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}), false);
+			tex( "ab", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}), false);
 		}
 		// */
 		/*
