@@ -280,11 +280,42 @@ namespace peg{
 	}
 
 
+	int count = 0;
 	map<string, function<Sign()>> rules;
 	void init(){
 		rules["A"] = []()-> Sign{
-			return sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')})();
+			if(count > 100) exit(1);
+			cout<<"Exec A\n";
+			count++;
+			return sequence({optional(sequence({Terminal('a'),Terminal('b')})), rules["Expr"]})();
 		};
+		rules["Expr"] = []()-> Sign{
+			cout<<"Exec expr\n";
+			count++;
+			return orderedChoice({Terminal('a'), rules["A"]})();
+		};
+
+		rules["S"] = []()-> Sign{
+			return sequence({rules["Expr"], endOfString()})();
+		};
+/*
+		rules["Value"] = []()-> Sign{
+			cout<<"Exec value\n";
+			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
+		};
+		rules["Product"] = []()-> Sign{
+			cout<<"Exec product\n";
+			return sequence({ rules["Value"], zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), rules["Value"]}))})();
+		};
+		rules["Sum"] = []()-> Sign{
+			cout<<"Exec sum\n";
+			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
+		};
+		rules["Expr"] = []()-> Sign{
+			cout<<"Exec expr\n";
+			return rules["Sum"]();
+		};
+*/
 	}
 
 	void set_source(string s){
@@ -296,7 +327,7 @@ namespace peg{
 		cursor = 0;
 		cout << "Input:"<< raw_source_ <<"\n";
 		init();
-		return rules["A"]().execution();
+		return rules["S"]().execution();
 		//return A()().execution();
 		//Expr()().execution();
 	}
@@ -413,21 +444,15 @@ namespace peg{
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 		}
 		// */
-		/*		
+		
 		cout<< "\e[96m# Test for calculator\033[0m\n";
 		{
 			test_counter = 0;
 			init();
-			tex( "1+1", rules["Expr"]);
-			tex( "1+", rules["Expr"], false);
-			tex( "+", rules["Expr"], false);
-			tex( "1", rules["Expr"]);
+			tex( "1+1", rules["S"]);
+			tex( "1+", rules["S"], false);
+			tex( "+", rules["S"], false);
 
-			tex( "1*1", rules["Product"] );
-			tex( "1*", rules["Product"], false);
-			tex( "_", rules["Product"], false);
-			tex( "1_", rules["Product"], false);
-			tex( "1_1", rules["Product"], false);
 		}
 		// */
 	}
