@@ -49,6 +49,9 @@ namespace peg{
 		cursor = markers.top();
 		markers.pop();
 	}
+	void remove(){
+		markers.pop();
+	}
 
 	class Sign{
 		vector<function<Sign()>> rules;
@@ -124,6 +127,7 @@ namespace peg{
 				}
 				return 0;
 			}else if(type == "optional"){
+				mark();
 				#ifdef DEBUG
 				cout<< "--- optional! ---\n";
 				cout<< "optional "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;
@@ -132,47 +136,40 @@ namespace peg{
 				if(sign.type == "Terminal"){
 					if(raw_source_[cursor] == sign.value){
 						cursor++;
+						remove();
 						return 1;
 					}
 				}else{
 					auto res = sign.execution();
 					if(res == -1){
+						back();
 						return res;
 					}
 				}
+				remove();
 				return 1;
 			}else if(type == "zeroOrMore"){
 				mark();	
 				#ifdef DEBUG
 				cout<< "--- zeroOrMore! "<< rules[0]().type <<" ---\n";
 				#endif
-				bool res = false;
-				bool first = false;
-				// sequence(), terminal
 				auto sign = rules[0]();
-				do{
-					if(sign.type == "Terminal"){
-						if(sign.value == raw_source_[cursor]){
-							cursor++;
-						}
-					}else{
-						res = sign.execution();
-						if(!res &&  sign.type == "sequence"){
-							cout << cursor << " " << max_cursor <<  endl;
-							//cout << sign.rules[0]().value << "," << raw_source_[cursor] << endl;
-							if(cursor != max_cursor){
-								return false;
-							}
-						}
-//						cursor++;
+				if(sign.type == "Terminal"){
+					bool none = true;
+					while(raw_source_[cursor] == sign.value){
+						cursor++;
+						none = false;
 					}
-					if(res)
-						first = true;
-				}while(res);
-
-				if(!first)
-					back();
-				return true;
+					return 1;
+				}else{
+					int res;
+					do{
+						res = sign.execution();
+					}while(res == 1);
+					if(res == -1)
+						return -1;
+					return 1;
+				}
 			}else if(type == "oneOrMore"){
 				mark();
 				#ifdef DEBUG
@@ -351,17 +348,18 @@ namespace peg{
 			tex( "ab", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}), false);
 		}
 		// */
-		/*
+		
 		cout<< "\e[96m# Test for zeroOrMore\033[0m\n";
 		{
 			test_counter = 0;
 			tex( "", zeroOrMore(Terminal('a')));
 			tex( "a", zeroOrMore(Terminal('a')));
 			tex( "aaaa", zeroOrMore(Terminal('a')));
-			tex( "b", zeroOrMore(Terminal('a')));
-			tex( "ab", zeroOrMore(Terminal('a')));
+			tex( "b", zeroOrMore(Terminal('a')), false);
+			tex( "b", sequence({ zeroOrMore(Terminal('a')), Terminal('b')}));
+			tex( "ab", zeroOrMore(Terminal('a')), false);
 			tex( "b", sequence({ zeroOrMore(Terminal('a')),Terminal('b') }));
-			tex( "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})) );
+			tex( "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})) ,false);
 			tex( "c", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
