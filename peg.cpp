@@ -81,30 +81,36 @@ namespace peg{
 				int seq_cursor = 0;
 				mark();				
 				#ifdef DEBUG
-				cout<< "--- sequence! "<< raw_source_[cursor]<<"---\n";
+				cout<< "--- sequence! ["<< raw_source_[cursor]<<"]---\n";
 				#endif
+
 				for(auto r : rules){
 					if(r().type == "Terminal"){
+						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< r().value <<"---\n";
 						if(raw_source_[cursor] == r().value){
+							cout<< "            corsor++ "<< cursor+1<< endl;
 							cursor++;
 							seq_cursor++;
 						}
 					}else{
-						if( r().execution() == 1){
+						if(r().execution() == 1){
 							seq_cursor++;
 						}
-					}
+					}			
 				}
-				cout << num_rule << " ^^ " << seq_cursor <<  endl;
+				cout << num_rule << " ^^ " << seq_cursor <<" * "<< start <<  endl;
 				if(num_rule == seq_cursor){
-					cout << "success\n";
+					cout << "seq success return 1\n";
 					return 1;
 				}
 				if(start == seq_cursor){
 					back();
+					cout<< "           sequence back "<< cursor<< endl;
+					cout<< "seq faild return 0\n";
 					return 0;
 				}
-				back();
+				back();				
+				cout<< "seq faild return -1"<< cursor<<"\n";
 				return -1;
 			}else if(type == "orderedChoice"){
 				#ifdef DEBUG
@@ -114,6 +120,7 @@ namespace peg{
 					mark();
 					if(r().type == "Terminal"){
 						if(raw_source_[cursor] == r().value){
+							cout<< "            corsor++ "<< cursor+1<< endl;
 							cursor++;
 							return 1;
 						}
@@ -122,20 +129,23 @@ namespace peg{
 						if(res == 1){ 
 							return 1;
 						}
-					}
-					back();
+					}	
+					back();	
+					cout<< "           orderedChoice back "<< cursor<< endl;				
 				}
 				return 0;
 			}else if(type == "optional"){
 				mark();
 				#ifdef DEBUG
 				cout<< "--- optional! ---\n";
-				cout<< "optional "<<raw_source_[cursor]<<" "<<rules[0]().value<< endl;
+				cout<< "optional ["<<raw_source_[cursor]<<"] ["<<rules[0]().value <<"]"<< endl;
 				#endif
 				auto sign = rules[0]();
 				if(sign.type == "Terminal"){
 					if(raw_source_[cursor] == sign.value){
+						cout<< "            corsor++ "<< cursor+1<< endl;
 						cursor++;
+						cout<< "opt success return 1\n";
 						remove();
 						return 1;
 					}
@@ -143,13 +153,15 @@ namespace peg{
 					auto res = sign.execution();
 					if(res == -1){
 						back();
-						return res;
+						cout<< "           optional back "<< cursor<< endl;
+						cout<< "opt serror return -1\n";
+						return -1;
 					}
 				}
 				remove();
+				cout<< "opt none return 1\n";
 				return 1;
 			}else if(type == "zeroOrMore"){
-				mark();	
 				#ifdef DEBUG
 				cout<< "--- zeroOrMore! "<< rules[0]().type <<" ---\n";
 				#endif
@@ -157,6 +169,7 @@ namespace peg{
 				if(sign.type == "Terminal"){
 					bool none = true;
 					while(raw_source_[cursor] == sign.value){
+						cout<< "            corsor++ "<< cursor+1<< endl;
 						cursor++;
 						none = false;
 					}
@@ -166,10 +179,13 @@ namespace peg{
 					do{
 						res = sign.execution();
 					}while(res == 1);
-					if(res == -1)
+/*					if(res == -1){
 						return -1;
+					}
+*/					
 					return 1;
 				}
+				return 1;				
 			}else if(type == "oneOrMore"){
 				mark();	
 				#ifdef DEBUG
@@ -179,6 +195,7 @@ namespace peg{
 				bool none = true;
 				if(sign.type == "Terminal"){
 					while(raw_source_[cursor] == sign.value){
+						cout<< "            corsor++ "<< cursor+1<< endl;
 						cursor++;
 						none = false;
 					}
@@ -202,6 +219,7 @@ namespace peg{
 				cout<< "Number "<<raw_source_[cursor]<< endl;	
 				#endif
 				if('0' <= raw_source_[cursor] && raw_source_[cursor] <= '9'){
+					cout<< "            corsor++ "<< cursor+1<< endl;
 					cursor++;
 					return true;
 				}
@@ -220,6 +238,7 @@ namespace peg{
 					return false;
 				}
 			}else if(type == "endOfString"){
+				cout<<"endOfString "<< cursor <<" "<< raw_source_.size() << endl;
 				if(cursor == raw_source_.size()){
 					return true;
 				}
@@ -299,9 +318,12 @@ namespace peg{
 		}
 	}
 	void test(){
+		
 		cout<< "\e[96m# Test for sequence\033[0m\n";
 		{
 			test_counter = 0;
+
+			tex( "a", sequence({Terminal('a')}));
 			tex( "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
 			tex( "ab", sequence({Terminal('a'),Terminal('b')}));
 			tex( "adbc",sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}), false);
@@ -311,7 +333,7 @@ namespace peg{
 			tex( "", sequence({Terminal('a')}), false);
 		}
 		// */
-		
+			
 		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
 		{
 			test_counter = 0;
@@ -354,7 +376,10 @@ namespace peg{
 			tex( "ab", zeroOrMore(Terminal('a')), false);
 			tex( "b", sequence({ zeroOrMore(Terminal('a')),Terminal('b') }));
 			tex( "c", zeroOrMore(sequence({Terminal('a'),Terminal('b')})) ,false);
+			tex( "ababab", zeroOrMore(sequence({Terminal('a'),Terminal('b')})));
+			tex( "aba", zeroOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 			tex( "c", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
+			tex( "abc", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
 		
@@ -371,7 +396,6 @@ namespace peg{
 			tex( "a+", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		// */
-		/*		
 		cout<< "\e[96m# Test for mix\033[0m\n";
 		{
 			test_counter = 0;
@@ -384,7 +408,8 @@ namespace peg{
 			tex( "1234", sequence({ optional(Terminal('-')), oneOrMore(Number()) }));
 			tex( "1+", sequence({ Terminal('1'), oneOrMore(sequence({Terminal('*'),Terminal('1')}))}), false);
 			tex( "+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
-			tex( "12123",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}));
+			tex( "123",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}));
+			tex( "1212",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')}))}));
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 		}
 		// */
