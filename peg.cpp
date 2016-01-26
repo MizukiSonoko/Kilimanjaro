@@ -74,6 +74,8 @@ namespace peg{
 		int execution(){
 			if(type == "sequence"){
 				int start = cursor;
+				int num_rule = rules.size();
+				int seq_cursor = 0;
 				mark();				
 				#ifdef DEBUG
 				cout<< "--- sequence! "<< raw_source_[cursor]<<"---\n";
@@ -82,48 +84,44 @@ namespace peg{
 					if(r().type == "Terminal"){
 						if(raw_source_[cursor] == r().value){
 							cursor++;
+							seq_cursor++;
 						}
 					}else{
-						if(r().execution()){
-							cursor++;
+						if( r().execution() == 1){
+							seq_cursor++;
 						}
 					}
 				}
-				if(rules.size() == cursor - start)
+				cout << num_rule << " ^^ " << seq_cursor <<  endl;
+				if(num_rule == seq_cursor)
 					return 1;
-				if(start == cursor){
+				if(start == seq_cursor){
 					back();
 					return 0;
 				}
 				back();
 				return -1;
-
 			}else if(type == "orderedChoice"){
 				#ifdef DEBUG
-				cout<< "--- orderedChoice! ---\n";		
+				cout<< "--- orderedChoice! "<< raw_source_[cursor]<<"---\n";
 				#endif
 				for(auto r : rules){
 					mark();
 					if(r().type == "Terminal"){
-						#ifdef DEBUG
-						cout<< "Terminal "<<raw_source_[cursor]<<" "<<r().value<< endl;
-						#endif
 						if(raw_source_[cursor] == r().value){
 							cursor++;
-							return true;
-						}else{
-							back();
+							return 1;
 						}
 					}else{
-						if(r().execution()){
-							return true;
-						}else{
-							back();
+						auto res = r().execution();
+						cout<< "res:"<< res << endl;
+						if(res == 1){ 
+							return r().rules.size();
 						}
-					}		
+					}
+					back();
 				}
-				cout << "faild\n";
-				return false;
+				return 0;
 			}else if(type == "optional"){
 				mark();
 				#ifdef DEBUG
@@ -224,6 +222,11 @@ namespace peg{
 					}
 					return false;
 				}
+			}else if(type == "endOfString"){
+				if(cursor == raw_source_.size()){
+					return true;
+				}
+				return false;
 			}
 			return false;
 		}
@@ -249,7 +252,9 @@ namespace peg{
 		return [s]() -> Sign{ return Sign(s, "andPredicate"); };	
 	}
 	Sign notPredicate();
-	Sign endOfString();
+	function<Sign()> endOfString(){
+		return []() -> Sign{ return Sign("endOfString"); };
+	}
 
 	function<Sign()> Terminal(char v){
 		return [v]() -> Sign{ return Sign(v, "Terminal"); };
@@ -287,7 +292,7 @@ namespace peg{
 		cout<<"    - test "<<test_counter<< "\n";
 		cursor = 0;
 		set_source(code);
-		auto res = c().execution();
+		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
 			cout << "     \x1b[32m"<< test_counter <<" ["<<code<<"] is Passed! ("<<res<<") \x1b[39m\n";
 			return true;
@@ -308,7 +313,7 @@ namespace peg{
 			tex( "", sequence({Terminal('a')}), false);
 		}
 		// */
-		/*
+		
 		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
 		{
 			test_counter = 0;
@@ -316,10 +321,10 @@ namespace peg{
 			tex( "a", orderedChoice({Terminal('b')}), false);
 			tex( "a", orderedChoice({Terminal('a'),Terminal('b')}));
 			tex( "a", orderedChoice({Terminal('b'),Terminal('a')}));
-			tex( "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('a'),Terminal('b')})}));
+			tex( "ab", orderedChoice({sequence({Terminal('a'),Terminal('b')}),sequence({Terminal('a'),Terminal('a')})}));// x
 			tex( "ab", orderedChoice({sequence({Terminal('a'),Terminal('a')}),sequence({Terminal('b'),Terminal('b')})}), false);
-			tex( "ba", orderedChoice({Terminal('a'),Terminal('b')}));
-			tex( "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}));
+			tex( "ba", orderedChoice({Terminal('a'),Terminal('b')}), false);
+			tex( "ba", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}), false);
 			tex( "_", orderedChoice({sequence({Terminal('a')}),sequence({Terminal('b')})}), false);
 		}
 		// */
