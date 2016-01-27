@@ -75,6 +75,7 @@ namespace peg{
 			type = "";
 		}
 		int execution(){
+			cout<<"      - execution! "<< type << "\n";
 			if(type == "sequence"){
 				int start = cursor;
 				int num_rule = rules.size();
@@ -84,18 +85,21 @@ namespace peg{
 				cout<< "--- sequence! ["<< raw_source_[cursor]<<"]---\n";
 				#endif
 				for(auto r : rules){
+//					cout << " loop " << r().type <<"\n";
 					if(r().type == "Terminal"){
-						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< r().value <<"---\n";
+//						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< r().value <<"---\n";
 						if(raw_source_[cursor] == r().value){
-							cout<< "            corsor++ "<< cursor+1<< endl;
+//							cout<< "            corsor++ "<< cursor+1<< endl;
 							cursor++;
 							seq_cursor++;
 						}
 					}else{
+//						cout << "aa\n";
+//						cout << "execution in execution \n";
 						if(r().execution() == 1){
 							seq_cursor++;
 						}
-					}			
+					}
 				}
 				if(num_rule == seq_cursor){
 					cout << "seq success return 1\n";
@@ -340,24 +344,27 @@ namespace peg{
 	}
 
 
+	vector<string> passed_tests;
+	vector<string> faild_tests;
 	int test_counter = 0;
 	bool tex( string code, function<Sign()> c,bool correct = true){
 		test_counter++;
-		cout<<"    - test "<<test_counter<< "\n";
+		cout<<"\x1b[32m#>- test "<<test_counter<< "\x1b[39m\n";
 		cursor = 0;
 		set_source(code);
+		cout<<"    - execute!\n";
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
-			cout << "     \x1b[32m"<< test_counter <<" ["<<code<<"] is Passed! ("<<res<<") \x1b[39m\n";
+			passed_tests.push_back("     \x1b[32m"+ to_string(test_counter) +" ["+ code +"] is Passed! ("+ to_string(res) +") \x1b[39m\n");
 			return true;
 		}else{
-			cout << "     \033[1;31m"<< test_counter <<" ["<<code<<"] is Faild ("<<res<<") \033[0m\n";
+			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] is Faild ("+ to_string(res) +") \033[0m\n");
 			return false;
 		}
 	}
 
 	void test(){
-
+		/*
 		cout<< "\e[96m# Test for sequence\033[0m\n";
 		{
 			test_counter = 0;
@@ -372,6 +379,7 @@ namespace peg{
 			tex( "", sequence({Terminal('a')}), false);
 		}
 		// */
+		/*
 			
 		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
 		{
@@ -389,6 +397,7 @@ namespace peg{
 		}
 		// */
 		
+		/*
 		cout<< "\e[96m# Test for optional\033[0m\n";
 		{
 			test_counter = 0;
@@ -404,6 +413,7 @@ namespace peg{
 		}
 		// */
 		
+		/*
 		cout<< "\e[96m# Test for zeroOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -422,6 +432,7 @@ namespace peg{
 		}
 		// */
 		
+		/*
 		cout<< "\e[96m# Test for oneOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -452,12 +463,18 @@ namespace peg{
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 
 			tex( "25252", sequence({oneOrMore(Number())}));
+			tex( "aa", sequence({oneOrMore(Terminal('a'))}));
 
 			auto P = sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
 		}
 		// */
 		cout<< "\e[96m# Test using variable\033[0m\n";
 		{
+
+			for(auto v : faild_tests){
+				cout<< v;
+			}
+
 			auto A = sequence({Terminal('a'),Terminal('a')});
 			tex( "aa", A);
 			auto B = orderedChoice({Terminal('a'),Terminal('b')});
@@ -478,6 +495,7 @@ namespace peg{
 			auto X = sequence({oneOrMore(Terminal('a'))});
 			tex( "aa", X);
 		}
+
 		/*
 		cout<< "\e[96m# Test for calculator\033[0m\n";
 		{
