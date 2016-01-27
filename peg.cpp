@@ -458,7 +458,6 @@ namespace peg{
 		// */
 		cout<< "\e[96m# Test using variable\033[0m\n";
 		{
-
 			auto A = sequence({Terminal('a'),Terminal('a')});
 			tex( "aa", A);
 			auto B = orderedChoice({Terminal('a'),Terminal('b')});
@@ -469,7 +468,15 @@ namespace peg{
 			tex( "aa", D);
 			auto E = oneOrMore(Terminal('a'));
 			tex( "aa", E);
+			auto F = oneOrMore(Number());
+			tex( "1234", F);
+			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
+			tex( "aa", G);
+			auto H = oneOrMore(B);
+			tex( "a", H);
 
+			auto X = sequence({oneOrMore(Terminal('a'))});
+			tex( "aa", X);
 		}
 		/*
 		cout<< "\e[96m# Test for calculator\033[0m\n";
