@@ -379,6 +379,8 @@ namespace peg{
 	}
 
 
+	string test_class = "";
+	int test_class_num = 0;
 	vector<string> passed_tests;
 	vector<string> faild_tests;
 	int test_counter = 0;
@@ -390,7 +392,7 @@ namespace peg{
 		cout<<"    - execute!\n";
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
-			passed_tests.push_back("     \x1b[32m"+ to_string(test_counter) +" ["+ code +"] is Passed! ("+ to_string(res) +") \x1b[39m\n");
+			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] is Passed! ("+ to_string(res) +") \x1b[39m\n");
 			return true;
 		}else{
 			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] is Faild ("+ to_string(res) +") \033[0m\n");
@@ -398,13 +400,20 @@ namespace peg{
 		}
 	}
 
+	void test_init(){
+		cout<< "\e[96m# Test "<< test_class <<" \033[0m\n";
+		passed_tests.push_back("     \e[35;1m "+test_class + " start! \x1b[39m\n");
+		faild_tests.push_back("     \e[35;1m "+test_class + " start! \x1b[39m\n");
+		test_class_num++;
+	}
+
 	
 	void test(){
-		
-		cout<< "\e[96m# Test for sequence\033[0m\n";
+
+		test_class = "Sequence";
+		test_init();
 		{
 			test_counter = 0;
-
 			tex( "a", sequence({Terminal('a')}));
 			tex( "abcd", sequence({Terminal('a'),Terminal('b'),Terminal('c'),Terminal('d')}));
 			tex( "ab", sequence({Terminal('a'),Terminal('b')}));
@@ -416,8 +425,8 @@ namespace peg{
 			tex( "a", sequence({sequence({sequence({sequence({sequence({Terminal('a')})})})})}));
 		}
 		// */
-		
-		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
+		test_class = "OrderedChoice";
+		test_init();
 		{
 			test_counter = 0;
 			tex( "a", orderedChoice({Terminal('a')}));
@@ -433,8 +442,8 @@ namespace peg{
 		}
 		// */
 		
-		
-		cout<< "\e[96m# Test for optional\033[0m\n";
+		test_class = "Optional";
+		test_init();
 		{
 			test_counter = 0;
 			tex( "", optional(Terminal('a')));
@@ -450,7 +459,8 @@ namespace peg{
 		// */
 		
 		
-		cout<< "\e[96m# Test for zeroOrMore\033[0m\n";
+		test_class = "ZeroOrMore";
+		test_init();
 		{
 			test_counter = 0;
 			tex( "", zeroOrMore(Terminal('a')));
@@ -468,8 +478,8 @@ namespace peg{
 		}
 		// */
 		
-		
-		cout<< "\e[96m# Test for oneOrMore\033[0m\n";
+		test_class = "OneOrMore";
+		test_init();
 		{
 			test_counter = 0;
 			tex( "", oneOrMore(Terminal('a')), false);
@@ -482,7 +492,9 @@ namespace peg{
 			tex( "a+", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		// */
-		cout<< "\e[96m# Test for mix\033[0m\n";
+		
+		test_class = "Mix";
+		test_init();
 		{
 			test_counter = 0;
 			tex( "1+1", sequence({ Number(), Terminal('+'), Number()}));
@@ -504,7 +516,8 @@ namespace peg{
 			auto P = sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
 		}
 		// */
-		cout<< "\e[96m# Test using variable\033[0m\n";
+		test_class = "using variables";
+		test_init();
 		{
 
 			auto A = sequence({Terminal('a'),Terminal('a')});
@@ -529,10 +542,12 @@ namespace peg{
 			for(auto v : passed_tests){
 				cout<< v;
 			}
+			cout <<"Passed test "<< passed_tests.size() - test_class_num << "/"<<( passed_tests.size() + faild_tests.size() - test_class_num*2 )<<" \n";
 
 			for(auto v : faild_tests){
 				cout<< v;
 			}
+			cout <<"Faild test "<< faild_tests.size() - test_class_num << "/"<<( passed_tests.size() + faild_tests.size() - test_class_num*2 )<<" \n";
 		}
 
 		/*
