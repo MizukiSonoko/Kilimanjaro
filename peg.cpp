@@ -519,7 +519,7 @@ namespace peg{
 		test_class = "using variables";
 		test_init();
 		{
-
+			test_counter = 0;
 			auto A = sequence({Terminal('a'),Terminal('a')});
 			tex( "aa", A);
 			auto B = orderedChoice({Terminal('a'),Terminal('b')});
