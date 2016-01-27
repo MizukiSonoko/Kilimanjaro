@@ -363,49 +363,9 @@ namespace peg{
 		}
 	}
 
-	namespace sandbox{
-
-
-		function<int(int)> g(function<int(int)> f){
-			cout << " exec g !\n";
-			return [f](int x) -> int {
-				cout<< " exec g return lambda! "<< x << endl;
-				return f(x + 1);
-			};
-		}
-
-		void e(function<int(int)> F){
-			cout<< " exec e !\n";
-			F(1);
-		}
-		void sandbox(){
-			cout << "(1)\n";
-			auto F1 =
-				g(
-					g([](int x){
-						cout <<" exec g argv lambda! "<< x << endl;
-						return x + 1;
-					})
-				);
-			auto F2 = [F1](int x){
-				cout << " exec F2 lambda! "<< x << endl;
-				return F1(x);
-			};
-			cout << "(2)\n";
-			e(F2);
-			auto F3 = [f = F2(5)](int x){
-				cout << " exec F3 lambda! "<< x << endl;
-				return f;			
-			};
-			cout << "(3)\n";
-			e(F3);
-		}
-	}
-
+	
 	void test(){
-		sandbox::sandbox();
-		return;
-		/*
+		
 		cout<< "\e[96m# Test for sequence\033[0m\n";
 		{
 			test_counter = 0;
@@ -418,10 +378,10 @@ namespace peg{
 			tex( "a", sequence({Terminal('a')}));
 			tex( "b", sequence({Terminal('a')}), false);
 			tex( "", sequence({Terminal('a')}), false);
+			tex( "a", sequence({sequence({sequence({sequence({sequence({Terminal('a')})})})})})m);
 		}
 		// */
-		/*
-			
+		
 		cout<< "\e[96m# Test for orderedChoice\033[0m\n";
 		{
 			test_counter = 0;
@@ -438,7 +398,7 @@ namespace peg{
 		}
 		// */
 		
-		/*
+		
 		cout<< "\e[96m# Test for optional\033[0m\n";
 		{
 			test_counter = 0;
@@ -454,7 +414,7 @@ namespace peg{
 		}
 		// */
 		
-		/*
+		
 		cout<< "\e[96m# Test for zeroOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -473,7 +433,7 @@ namespace peg{
 		}
 		// */
 		
-		/*
+		
 		cout<< "\e[96m# Test for oneOrMore\033[0m\n";
 		{
 			test_counter = 0;
@@ -512,10 +472,6 @@ namespace peg{
 		cout<< "\e[96m# Test using variable\033[0m\n";
 		{
 
-			for(auto v : faild_tests){
-				cout<< v;
-			}
-
 			auto A = sequence({Terminal('a'),Terminal('a')});
 			tex( "aa", A);
 			auto B = orderedChoice({Terminal('a'),Terminal('b')});
@@ -532,8 +488,16 @@ namespace peg{
 			tex( "aa", G);
 			auto H = oneOrMore(B);
 			tex( "a", H);
-			auto X = sequence({optional(Terminal('a'))});
-			tex( "aa", X);
+//			auto X = sequence({optional(Terminal('a'))});
+//			tex( "aa", X);
+
+			for(auto v : passed_tests){
+				cout<< v;
+			}
+
+			for(auto v : faild_tests){
+				cout<< v;
+			}
 		}
 
 		/*
