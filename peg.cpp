@@ -355,8 +355,9 @@ namespace peg{
 			return false;
 		}
 	}
+
 	void test(){
-		
+
 		cout<< "\e[96m# Test for sequence\033[0m\n";
 		{
 			test_counter = 0;
@@ -450,18 +451,26 @@ namespace peg{
 			tex( "1212",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')}))}));
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 
-			function<Sign()> P = sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
-			// []()-> function<Sign()>{
-			//	return sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
-			//};
+			tex( "25252", sequence({oneOrMore(Number())}));
 
-			//tex( "1*1", sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))}));
-			//tex( "1*1", P);
-			tex( "1*1", P);
-
-			//matex( "123*456", sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))}));
+			auto P = sequence({ oneOrMore(Number()), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
 		}
 		// */
+		cout<< "\e[96m# Test using variable\033[0m\n";
+		{
+
+			auto A = sequence({Terminal('a'),Terminal('a')});
+			tex( "aa", A);
+			auto B = orderedChoice({Terminal('a'),Terminal('b')});
+			tex( "a", B);
+			auto C = optional(Terminal('a'));
+			tex( "a", C);
+			auto D = zeroOrMore(Terminal('a'));
+			tex( "aa", D);
+			auto E = oneOrMore(Terminal('a'));
+			tex( "aa", E);
+
+		}
 		/*
 		cout<< "\e[96m# Test for calculator\033[0m\n";
 		{
