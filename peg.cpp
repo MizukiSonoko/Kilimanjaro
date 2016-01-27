@@ -13,6 +13,16 @@ namespace peg{
 	string raw_rule_;
 	string raw_source_;
 
+	string route = "";
+	int deep = 0;
+	string make_route(string type){
+		string res = 0;
+		for(int i =0;i<deep*2; i++){
+			res += " ";
+		}
+		return res + type; 
+	}
+
 	void log(string s);
 
 	string load_file(string filename){
@@ -75,6 +85,7 @@ namespace peg{
 			type = "";
 		}
 		int execution(){
+			route += type + " ";
 			cout<<"      - execution! "<< type << "\n";
 			if(type == "sequence"){
 				int start = cursor;
@@ -390,12 +401,14 @@ namespace peg{
 		cursor = 0;
 		set_source(code);
 		cout<<"    - execute!\n";
+		route = "";
+		deep = 0;
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
-			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] is Passed! ("+ to_string(res) +") \x1b[39m\n");
+			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] :"+ route +" is Passed! ("+ to_string(res) +") \x1b[39m\n");
 			return true;
 		}else{
-			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] is Faild ("+ to_string(res) +") \033[0m\n");
+			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] :"+ route +" is Faild ("+ to_string(res) +") \033[0m\n");
 			return false;
 		}
 	}
@@ -520,10 +533,7 @@ namespace peg{
 		test_init();
 		{
 			test_counter = 0;
-			auto A = sequence({Terminal('a'),Terminal('a')});
-			tex( "aa", A);
-			auto B = orderedChoice({Terminal('a'),Terminal('b')});
-			tex( "a", B);
+			
 			auto C = optional(Terminal('a'));
 			tex( "a", C);
 			auto D = zeroOrMore(Terminal('a'));
@@ -534,8 +544,6 @@ namespace peg{
 			tex( "1234", F);
 			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
 			tex( "aa", G);
-			auto H = oneOrMore(B);
-			tex( "a", H);
 //			auto X = sequence({optional(Terminal('a'))});
 //			tex( "aa", X);
 
