@@ -349,7 +349,7 @@ namespace peg{
 	int test_counter = 0;
 	bool tex( string code, function<Sign()> c,bool correct = true){
 		test_counter++;
-		cout<<"\x1b[32m#>- test "<<test_counter<< "\x1b[39m\n";
+		cout<<"\x1b[32m#>- test "<<test_counter<< " Input:["<< code <<"]\x1b[39m\n";
 		cursor = 0;
 		set_source(code);
 		cout<<"    - execute!\n";
@@ -363,7 +363,48 @@ namespace peg{
 		}
 	}
 
+	namespace sandbox{
+
+
+		function<int(int)> g(function<int(int)> f){
+			cout << " exec g !\n";
+			return [f](int x) -> int {
+				cout<< " exec g return lambda! "<< x << endl;
+				return f(x + 1);
+			};
+		}
+
+		void e(function<int(int)> F){
+			cout<< " exec e !\n";
+			F(1);
+		}
+		void sandbox(){
+			cout << "(1)\n";
+			auto F1 =
+				g(
+					g([](int x){
+						cout <<" exec g argv lambda! "<< x << endl;
+						return x + 1;
+					})
+				);
+			auto F2 = [F1](int x){
+				cout << " exec F2 lambda! "<< x << endl;
+				return F1(x);
+			};
+			cout << "(2)\n";
+			e(F2);
+			auto F3 = [f = F2(5)](int x){
+				cout << " exec F3 lambda! "<< x << endl;
+				return f;			
+			};
+			cout << "(3)\n";
+			e(F3);
+		}
+	}
+
 	void test(){
+		sandbox::sandbox();
+		return;
 		/*
 		cout<< "\e[96m# Test for sequence\033[0m\n";
 		{
@@ -491,8 +532,7 @@ namespace peg{
 			tex( "aa", G);
 			auto H = oneOrMore(B);
 			tex( "a", H);
-
-			auto X = sequence({oneOrMore(Terminal('a'))});
+			auto X = sequence({optional(Terminal('a'))});
 			tex( "aa", X);
 		}
 
