@@ -4,6 +4,8 @@
 #include <stack>
 #include <vector>
 
+#include <cstdlib>
+
 #include <functional>
 #include <map>
 
@@ -15,7 +17,7 @@ namespace peg{
 
 	string route = "";
 	int deep = 0;
-	string make_route(string type){
+	string git(string type){
 		string res = 0;
 		for(int i =0;i<deep*2; i++){
 			res += " ";
@@ -63,24 +65,31 @@ namespace peg{
 		markers.pop();
 	}
 
+	void clear(){
+		while(!markers.empty())
+			markers.pop();
+	}
+
+
 	class Sign{
 		vector<function<Sign()>> rules;
 	public:
 		char value;
 		string type;
-		Sign(initializer_list<function<Sign()>> l,string t):rules(l){
-			type = t;
-		}		
-		Sign(function<Sign()> s,string t): rules({s}){
-			type = t;
+		Sign(initializer_list<function<Sign()>> l,string t):
+			rules(l),type(t){
+				cout<< " construct :"<< l.size()<<" type:"<< t<< endl;
 		}
-		Sign(char v, string t){
-			type = t;
-			value = v;
-		}
-		Sign(string t){
-			type = t;
-		}
+
+		Sign(function<Sign()> s,string t):
+			rules({s}), type(t){
+				cout<< " construct type:"<< t<< endl;				
+			}
+
+		Sign(char v, string t):value(v),type(t){}
+
+		Sign(string t):type(t){}
+
 		Sign(){
 			type = "";
 		}
@@ -91,19 +100,21 @@ namespace peg{
 				int start = cursor;
 				int num_rule = rules.size();
 				int seq_cursor = 0;
-				mark();				
+				mark();
 				#ifdef DEBUG
 				cout<< "--- sequence! ["<< raw_source_[cursor]<<"]---\n";
+				cout<< "rules:" << rules.size() << endl;
 				#endif
 				for(auto r : rules){
+					auto sign = r();
 					#ifdef DEBUG
-					cout << " loop " << r().type <<"\n";
+					cout << " loop " << sign.type <<"\n";
 					#endif
-					if(r().type == "Terminal"){
+					if(sign.type == "Terminal"){
 						#ifdef DEBUG
-						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< r().value <<"---\n";
+						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< sign.value <<"---\n";
 						#endif
-						if(raw_source_[cursor] == r().value){
+						if(raw_source_[cursor] == sign.value){
 							#ifdef DEBUG
 							cout<< "            corsor++ "<< cursor+1<< endl;
 							#endif
@@ -114,7 +125,7 @@ namespace peg{
 						#ifdef DEBUG
 						cout << "execution in execution \n";
 						#endif
-						if(r().execution() == 1){
+						if(sign.execution() == 1){
 							seq_cursor++;
 						}
 					}
@@ -400,6 +411,7 @@ namespace peg{
 		cout<<"\x1b[32m#>- test "<<test_counter<< " Input:["<< code <<"]\x1b[39m\n";
 		cursor = 0;
 		set_source(code);
+		clear();
 		cout<<"    - execute!\n";
 		route = "";
 		deep = 0;
@@ -544,8 +556,8 @@ namespace peg{
 			tex( "1234", F);
 			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
 			tex( "aa", G);
-//			auto X = sequence({optional(Terminal('a'))});
-//			tex( "aa", X);
+			auto X = sequence({optional(Terminal('a'))});
+			tex( "a", X);
 
 			for(auto v : passed_tests){
 				cout<< v;
