@@ -601,8 +601,14 @@ namespace peg{
 			tex( "1234", F);
 			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
 			tex( "aa", G);
+
+			auto H1 = sequence({Terminal('w')});
+			tex( "w", H1);
+
+
 			auto H = sequence({optional(Terminal('a'))});
 			tex( "a", H);
+
 
 			auto O = sequence({zeroOrMore(Terminal('1'))});
 			tex( "123", O);
