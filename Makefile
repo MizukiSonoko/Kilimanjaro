@@ -1,6 +1,6 @@
 CC=clang++
 TARGET=sharo
-OPTION=-std=c++0x -Wall
+OPTION=-g -O0 -std=c++1y -Wall -DDEBUG
 all: front.o peg.o
 			$(CC) $(OPTION) peg.o front.o -o $(TARGET)
 

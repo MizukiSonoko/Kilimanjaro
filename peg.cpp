@@ -97,6 +97,7 @@ namespace peg{
 		string type;
 		Sign(initializer_list<function<Sign()>> l,string t):
 			rules(l),type(t){
+				cout << "cont \n";
 				id = uuid();
 				cout<< " construct :"<< id <<" size:" << l.size()<<" type:"<< t<< endl;
 		}
@@ -161,6 +162,7 @@ namespace peg{
 					#endif
 					return 1;
 				}
+				
 				if(start == seq_cursor){
 					back();
 					#ifdef DEBUG
@@ -337,7 +339,7 @@ namespace peg{
 
 	function<Sign()> sequence(initializer_list<function<Sign()>> l){ // A B C ...
 		return [l]() -> Sign{ 
-			cout << "exec function sequence" << endl;
+			cout << "exec function sequence "<< l.size() << endl;
 			return Sign(l, "sequence");
 		};
 	}
@@ -449,16 +451,20 @@ namespace peg{
 	vector<string> passed_tests;
 	vector<string> faild_tests;
 	int test_counter = 0;
+
+	void reset(){
+		cursor = 0;
+		max_cursor = 0;
+		route = "";
+		deep = 0;
+		clear();
+	}
+
 	bool tex( string code, function<Sign()> c,bool correct = true){
 		test_counter++;
 		cout<<"\x1b[32m#>- test "<<test_counter<< " Input:["<< code <<"]\x1b[39m\n";
-		cursor = 0;
-		max_cursor = 0;
-		set_source(code);
-		clear();
 		cout<<"    - execute!\n";
-		route = "";
-		deep = 0;
+		set_source(code);
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
 			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] :"+ route +" is Passed! ("+ to_string(res) +") \x1b[39m\n");
@@ -478,7 +484,7 @@ namespace peg{
 
 	
 	void test(){
-
+/*
 		test_class = "Sequence";
 		test_init();
 		{
@@ -494,6 +500,8 @@ namespace peg{
 			tex( "a", sequence({sequence({sequence({sequence({sequence({Terminal('a')})})})})}));
 		}
 		// */
+/*
+
 		test_class = "OrderedChoice";
 		test_init();
 		{
@@ -510,7 +518,8 @@ namespace peg{
 			tex( "abe", orderedChoice({sequence({Terminal('a'),Terminal('b'),Terminal('c')}),sequence({Terminal('a'),Terminal('b'),Terminal('d')})}), false);
 		}
 		// */
-		
+		/*
+
 		test_class = "Optional";
 		test_init();
 		{
@@ -529,7 +538,8 @@ namespace peg{
 		}
 		// */
 		
-		
+		/*
+
 		test_class = "ZeroOrMore";
 		test_init();
 		{
@@ -548,7 +558,8 @@ namespace peg{
 			tex( "abc", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
-		
+		/*
+
 		test_class = "OneOrMore";
 		test_init();
 		{
@@ -563,7 +574,8 @@ namespace peg{
 			tex( "a+", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		// */
-		
+		/*
+
 		test_class = "Mix";
 		test_init();
 		{
@@ -586,38 +598,51 @@ namespace peg{
 
 		}
 		// */
+
+
 		test_class = "using variables";
 		test_init();
 		{
 			test_counter = 0;
-			
+/*
+			reset();
 			auto C = optional(Terminal('a'));
 			tex( "a", C);
+			reset();
 			auto D = zeroOrMore(Terminal('a'));
 			tex( "aa", D);
+			reset();
 			auto E = oneOrMore(Terminal('a'));
 			tex( "aa", E);
+			reset();
 			auto F = oneOrMore(Number());
 			tex( "1234", F);
+			reset();
 			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
 			tex( "aa", G);
-
-			auto H1 = sequence({Terminal('w')});
+			reset();
+			function<Sign()> H1 = sequence({Terminal('w')});
 			tex( "w", H1);
-
-
-			auto H = sequence({optional(Terminal('a'))});
+*/
+			reset();
+			function<Sign()> H = sequence({optional(Terminal('a'))});
 			tex( "a", H);
 
-
-			auto O = sequence({zeroOrMore(Terminal('1'))});
+			reset();
+			function<Sign()> O = sequence({zeroOrMore(Terminal('1'))});
 			tex( "123", O);
-			auto P = sequence({oneOrMore(Number())});
+			reset();
+			function<Sign()> P = sequence({oneOrMore(Number())});
 			tex( "124", P);
+
+
+			reset();
 			auto Q = sequence({zeroOrMore(Terminal('1')), Terminal('5')});
 			tex( "15", Q);
+			reset();
 			auto R = sequence({ optional(Terminal('-')), oneOrMore(Number()) });
 			tex( "-1234", R);
+//*/
 
 			//auto X = sequence({optional(Terminal('a')), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
 			//tex( "111", X);
@@ -625,6 +650,7 @@ namespace peg{
 			for(auto v : passed_tests){
 				cout<< v;
 			}
+
 			cout <<"Passed test "<< passed_tests.size() - test_class_num << "/"<<( passed_tests.size() + faild_tests.size() - test_class_num*2 )<<" \n";
 
 			for(auto v : faild_tests){
