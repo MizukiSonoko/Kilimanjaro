@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <cstdlib>
+#include <memory>
 
 // for debug
 #include <random>
@@ -13,37 +14,38 @@
 #include <map>
 
 namespace peg{
+
 	using namespace std;
 
-	string raw_rule_;
-	string raw_source_;
+	struct Context{
 
-	string route = "";
-	int deep = 0;
-	string git(string type){
-		string res = 0;
-		for(int i =0;i<deep*2; i++){
-			res += " ";
+		Context()
+			: raw_rule_("")
+			, raw_source_("")
+			, cursor(0)
+			, max_cursor(0)
+			, route("")
+			, deep(0)
+		{}
+
+		string raw_rule_;
+		string raw_source_;
+
+		int cursor;
+		int max_cursor;
+		stack<int> markers;
+
+		string route;
+		int deep;
+
+		char get_current_char(){
+			return raw_source_[cursor];
 		}
-		return res + type; 
-	}
+	};
+
+	shared_ptr<Context> context;
 
 	void log(string s);
-
-	// for debug
-	string uuid(){
-
-		string ascii = "abcdefghijklnmopqrstuvwxyzABCDEFGHIJKLNMOPQRSTUVWXYZ0123456789~!@#$^&*()_+";
-
-		std::random_device rd;
-		std::mt19937 mt(rd());
-		std::uniform_int_distribution<int> pos(0,ascii.size()-1);
-
-		string res = "";
-		for(int i = 0;i<16;i++)
-			res += ascii[pos(mt)];
-		return res;
-	}
 
 	string load_file(string filename){
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
@@ -61,90 +63,81 @@ namespace peg{
 	}
 
 	void load_cpp(string filename){
-		raw_source_ = load_file(filename);
+		context->raw_source_ = load_file(filename);
 	}
 
 	void load_rule(string filename){
-		raw_rule_ = load_file(filename);
+		context->raw_rule_ = load_file(filename);
 	}
-
-	int cursor;
-	int max_cursor;
-	stack<int> markers;
 	
 	void mark(){
-		markers.push(cursor);
+		context->markers.push(context->cursor);
 	}
 	void back(){
-		cursor = markers.top();
-		markers.pop();
+		context->cursor = context->markers.top();
+		context->markers.pop();
 	}
 	void remove(){
-		markers.pop();
+		context->markers.pop();
 	}
 
 	void clear(){
-		while(!markers.empty())
-			markers.pop();
+		while(!context->markers.empty())
+			context->markers.pop();
 	}
-
 
 	class Sign{
 		vector<function<Sign()>> rules;
 	public:
-		string id;
 		char value;
 		string type;
-		Sign(initializer_list<function<Sign()>> l,string t):
-			rules(l),type(t){
-				cout << "cont \n";
-				id = uuid();
-				cout<< " construct :"<< id <<" size:" << l.size()<<" type:"<< t<< endl;
+		Sign(vector<function<Sign()>> l,string t)
+			: rules(move(l))
+			, type(t)
+		{}
+
+		Sign(function<Sign()> s,string t)
+			: type(t)
+		{
+			rules.push_back(s);
 		}
 
-		Sign(function<Sign()> s,string t):
-			rules({s}), type(t){
-				id = uuid();
-				cout<< " construct:"<< id <<" type:"<< t<< endl;				
-			}
-
-		Sign(char v, string t):value(v),type(t){
-			id = uuid();
-			cout<< " construct:"<< id <<" type:"<< t<< endl;
+		Sign(char v, string t)
+			: value(v)
+			, type(t)
+		{
+			if(t != "Terminal")
+				throw "Error! Invalid constructer";
 		}
 
-		Sign(string t):type(t){}
+		Sign(string t)
+			: type(t)
+		{}
 
-		Sign(){
-			type = "";
-		}
+		Sign()
+			: type("")
+		{}
+
 		int execution(){
-			route += type + " ";
-
-			cout<<"      - execution! "<< type <<" id:"<< id << "\n";
+			context->route += type + " ";
+			cout<<"      - execution! "<< type <<" \n";
 			if(type == "sequence"){
-				int start = cursor;
+				int start = context->cursor;
 				int num_rule = rules.size();
 				int seq_cursor = 0;
 				mark();
 				#ifdef DEBUG
-				cout<< "--- sequence! ["<< raw_source_[cursor]<<"]---\n";
+				cout<< "--- sequence! ["<< context->get_current_char()<<"]---\n";
 				cout<< "rules:" << rules.size() << endl;
 				#endif
 				for(auto r : rules){
 					auto sign = r();
-					#ifdef DEBUG
-					cout << " loop " << sign.type <<"\n";
-					#endif
 					if(sign.type == "Terminal"){
 						#ifdef DEBUG
-						cout<< "--- seq! "<< raw_source_[cursor] <<" "<< sign.value <<"---\n";
+						cout<< "--- seq! "<< context->get_current_char() <<" "<< sign.value <<"---\n";
 						#endif
-						if(raw_source_[cursor] == sign.value){
-							#ifdef DEBUG
-							cout<< "            corsor++ "<< cursor+1<< endl;
-							#endif
-							cursor++;
+						if(context->get_current_char() == sign.value){
+							context->cursor++;
 							seq_cursor++;
 						}
 					}else{
@@ -166,29 +159,26 @@ namespace peg{
 				if(start == seq_cursor){
 					back();
 					#ifdef DEBUG
-					cout<< "           sequence back "<< cursor<< endl;
+					cout<< "           sequence back "<< context->cursor<< endl;
 					cout<< "seq faild return 0\n";
 					#endif
 					return 0;
 				}
-				back();				
+				back();	
 				#ifdef DEBUG
-				cout<< "seq faild return -1 ("<< cursor<<")\n";
+				cout<< "seq faild return -1 ("<< context->cursor<<")\n";
 				#endif
 				return -1;
 			}else if(type == "orderedChoice"){
 				#ifdef DEBUG
-				cout<< "--- orderedChoice! "<< raw_source_[cursor]<<"---\n";
+				cout<< "--- orderedChoice! "<< context->get_current_char()<<"---\n";
 				#endif
 				for(auto r : rules){
 					mark();
 					auto sign = r();
 					if(sign.type == "Terminal"){
-						if(raw_source_[cursor] == sign.value){
-							#ifdef DEBUG
-							cout<< "            corsor++ "<< cursor+1<< endl;
-							#endif
-							cursor++;
+						if(context->get_current_char() == sign.value){
+							context->cursor++;
 							return 1;
 						}
 					}else{
@@ -199,24 +189,20 @@ namespace peg{
 					}	
 					back();
 					#ifdef DEBUG
-					cout<< "           orderedChoice back "<< cursor<< endl;				
+					cout<< "           orderedChoice back "<< context->cursor<< endl;				
 					#endif
 				}
 				return 0;
 			}else if(type == "optional"){
 				mark();
-				cout <<" opt:" << rules.size() << endl;
-				auto sign = rules[0]();
+				auto sign = rules.at(0)();
 				#ifdef DEBUG
 				cout<< "--- optional! ---\n";
-				cout<< "optional ["<<raw_source_[cursor]<<"] ["<<sign.type <<"]"<< endl;
+				cout<< "optional ["<< context->get_current_char() <<"] ["<<sign.type <<"]"<< endl;
 				#endif
 				if(sign.type == "Terminal"){
-					if(raw_source_[cursor] == sign.value){
-						#ifdef DEBUG
-						cout<< "            corsor++ "<< cursor+1<< endl;
-						#endif
-						cursor++;
+					if(context->get_current_char() == sign.value){
+						context->cursor++;
 						#ifdef DEBUG
 						cout<< "opt success return 1\n";
 						#endif
@@ -227,10 +213,6 @@ namespace peg{
 					auto res = sign.execution();
 					if(res == -1){
 						back();
-						#ifdef DEBUG
-						cout<< "           optional back "<< cursor<< endl;
-						cout<< "opt serror return -1\n";
-						#endif
 						return -1;
 					}
 				}
@@ -241,17 +223,17 @@ namespace peg{
 				return 1;
 			}else if(type == "zeroOrMore"){
 				cout <<" zOm:" << rules.size() << endl;				
-				auto sign = rules[0]();
+				auto sign = rules.at(0)();
 				#ifdef DEBUG
 				cout<< "--- zeroOrMore! "<< sign.type <<" ---\n";
 				#endif
 				if(sign.type == "Terminal"){
 					bool none = true;
-					while(raw_source_[cursor] == sign.value){
+					while(context->get_current_char() == sign.value){
 						#ifdef DEBUG
-						cout<< "            corsor++ "<< cursor+1<< endl;
+						cout<< "            corsor++ "<< context->cursor+1<< endl;
 						#endif
-						cursor++;
+						context->cursor++;
 						none = false;
 					}
 					return 1;
@@ -275,11 +257,11 @@ namespace peg{
 				#endif
 				bool none = true;
 				if(sign.type == "Terminal"){
-					while(raw_source_[cursor] == sign.value){
+					while(context->get_current_char() == sign.value){
 						#ifdef DEBUG
-						cout<< "            corsor++ "<< cursor+1<< endl;
+						cout<< "            corsor++ "<< context->cursor+1<< endl;
 						#endif
-						cursor++;
+						context->cursor++;
 						none = false;
 					}
 					if(none)
@@ -301,20 +283,17 @@ namespace peg{
 
 			}else if(type == "Number"){
 				#ifdef DEBUG
-				cout<< "Number "<<raw_source_[cursor]<< endl;	
+				cout<< "Number "<<context->get_current_char()<< endl;	
 				#endif
-				if('0' <= raw_source_[cursor] && raw_source_[cursor] <= '9'){
-					#ifdef DEBUG
-					cout<< "            corsor++ "<< cursor+1<< endl;
-					#endif
-					cursor++;
+				if('0' <= context->get_current_char() && context->get_current_char() <= '9'){
+					context->cursor++;
 					return true;
 				}
 				return false;
 			}else if(type == "andPredicate"){
 				auto sign = rules[0]();
 				if(sign.type == "Terminal"){
-					if(sign.value == raw_source_[cursor]){
+					if(sign.value == context->get_current_char()){
 						return true;
 					}
 					return false;
@@ -325,10 +304,7 @@ namespace peg{
 					return false;
 				}
 			}else if(type == "endOfString"){
-				#ifdef DEBUG
-				cout<<"endOfString "<< cursor <<" "<< raw_source_.size() << endl;
-				#endif
-				if(cursor == raw_source_.size()){
+				if(context->cursor == context->raw_source_.size()){
 					return true;
 				}
 				return false;
@@ -337,44 +313,43 @@ namespace peg{
 		}
 	};
 
-	function<Sign()> sequence(initializer_list<function<Sign()>> l){ // A B C ...
-		return [l]() -> Sign{ 
-			cout << "exec function sequence "<< l.size() << endl;
-			return Sign(l, "sequence");
+	function<Sign()> sequence(vector<function<Sign()>> l){
+		return [l=move(l)]() -> Sign{
+			return Sign(move(l), "sequence");
 		};
 	}
 
-	function<Sign()> orderedChoice(initializer_list<function<Sign()>> l){ // A / B / C ...
-			return [l]() -> Sign{
-				cout << "exec function orderedChoice" << endl;
-				return Sign(l, "orderedChoice");
+	function<Sign()> orderedChoice(vector<function<Sign()>> l){
+			return [l=move(l)]() -> Sign{
+				return Sign(move(l), "orderedChoice");
 			};
 	}
-	function<Sign()> optional(function<Sign()> s){ // E?
-		return [s]() -> Sign{
-			cout << "exec function optional" << endl;
-			return Sign(s, "optional");
+	function<Sign()> optional(function<Sign()> s){
+		return [s=move(s)]() -> Sign{
+			return Sign(move(s), "optional");
 		};
 	}
-	function<Sign()> zeroOrMore(function<Sign()> s){ // E*
-		return [s]() -> Sign{ 
-			cout << "exec function zeroOrMore" << endl;
-			return Sign(s, "zeroOrMore");
+	function<Sign()> zeroOrMore(function<Sign()> s){
+		return [s=move(s)]() -> Sign{ 
+			return Sign(move(s), "zeroOrMore");
 		};
 	}
-	function<Sign()> oneOrMore(function<Sign()> s){  // E+
-		return [s]() -> Sign{ return Sign(s, "oneOrMore"); };
+	function<Sign()> oneOrMore(function<Sign()> s){
+		return [s=move(s)]() -> Sign{ return Sign(move(s), "oneOrMore"); };
 	}
+
 	function<Sign()> andPredicate(function<Sign()> s){
-		return [s]() -> Sign{ return Sign(s, "andPredicate"); };	
+		return [s=move(s)]() -> Sign{ return Sign(move(s), "andPredicate"); };	
 	}
+
 	Sign notPredicate();
+
 	function<Sign()> endOfString(){
 		return []() -> Sign{ return Sign("endOfString"); };
 	}
 
 	function<Sign()> Terminal(char v){
-		return [v]() -> Sign{ return Sign(v, "Terminal"); };
+		return [v=move(v)]() -> Sign{ return Sign(move(v), "Terminal"); };
 	}
 	function<Sign()> Number(){		
 		return []() -> Sign{ return Sign("Number"); };
@@ -386,24 +361,19 @@ namespace peg{
 	void init(){
 
 		rules["Value"] = []()-> Sign{
-			cout<<"Exec value\n";
 			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
 		};
 		rules["Product"] = []()-> Sign{
-			cout<<"Exec product\n";
 			return sequence({ rules["Value"], zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), rules["Value"]}))})();
 		};
 		rules["Sum"] = []()-> Sign{
-			cout<<"Exec sum\n";
 			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
 		};
 		rules["Expr"] = []()-> Sign{
-			cout<<"Exec expr\n";
 			return rules["Sum"]();
 		};
 
 		rules["A"] = []()-> Sign{			
-			cout<<"Exec A\n";
 			count++;
 			return sequence({optional(sequence({Terminal('a'),Terminal('b')})), sequence({ Terminal('b'), rules["Expr"] }) })();
 		};
@@ -432,13 +402,13 @@ namespace peg{
 	}
 
 	void set_source(string s){
-		raw_source_ = s;
+		context->raw_source_ = s;
 	}
 
 	bool exec(string n){
 		set_source(n);
-		cursor = 0;
-		cout << "Input:"<< raw_source_ <<"\n";
+		context->cursor = 0;
+		cout << "Input:"<< context->raw_source_ <<"\n";
 		init();
 		return rules["S"]().execution();
 		//return A()().execution();
@@ -453,10 +423,10 @@ namespace peg{
 	int test_counter = 0;
 
 	void reset(){
-		cursor = 0;
-		max_cursor = 0;
-		route = "";
-		deep = 0;
+		context->cursor = 0;
+		context->max_cursor = 0;
+		context->route = "";
+		context->deep = 0;
 		clear();
 	}
 
@@ -467,10 +437,10 @@ namespace peg{
 		set_source(code);
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
-			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] :"+ route +" is Passed! ("+ to_string(res) +") \x1b[39m\n");
+			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] :"+ context->route +" is Passed! ("+ to_string(res) +") \x1b[39m\n");
 			return true;
 		}else{
-			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] :"+ route +" is Faild ("+ to_string(res) +") \033[0m\n");
+			faild_tests.push_back("     \033[1;31m"+ to_string(test_counter) +" ["+ code +"] :"+ context->route +" is Faild ("+ to_string(res) +") \033[0m\n");
 			return false;
 		}
 	}
@@ -484,7 +454,8 @@ namespace peg{
 
 	
 	void test(){
-/*
+		context = make_shared<Context>(Context());
+		
 		test_class = "Sequence";
 		test_init();
 		{
@@ -500,7 +471,6 @@ namespace peg{
 			tex( "a", sequence({sequence({sequence({sequence({sequence({Terminal('a')})})})})}));
 		}
 		// */
-/*
 
 		test_class = "OrderedChoice";
 		test_init();
@@ -518,7 +488,6 @@ namespace peg{
 			tex( "abe", orderedChoice({sequence({Terminal('a'),Terminal('b'),Terminal('c')}),sequence({Terminal('a'),Terminal('b'),Terminal('d')})}), false);
 		}
 		// */
-		/*
 
 		test_class = "Optional";
 		test_init();
@@ -537,8 +506,6 @@ namespace peg{
 			tex( "ab", sequence({optional(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}), false);
 		}
 		// */
-		
-		/*
 
 		test_class = "ZeroOrMore";
 		test_init();
@@ -558,8 +525,7 @@ namespace peg{
 			tex( "abc", sequence({ zeroOrMore(sequence({Terminal('a'),Terminal('b')})), Terminal('c')}));
 		}
 		// */
-		/*
-
+		
 		test_class = "OneOrMore";
 		test_init();
 		{
@@ -574,7 +540,6 @@ namespace peg{
 			tex( "a+", oneOrMore(sequence({Terminal('a'),Terminal('b')})), false);
 		}
 		// */
-		/*
 
 		test_class = "Mix";
 		test_init();
@@ -604,7 +569,7 @@ namespace peg{
 		test_init();
 		{
 			test_counter = 0;
-/*
+
 			reset();
 			auto C = optional(Terminal('a'));
 			tex( "a", C);
@@ -623,10 +588,10 @@ namespace peg{
 			reset();
 			function<Sign()> H1 = sequence({Terminal('w')});
 			tex( "w", H1);
-*/
+
 			reset();
 			function<Sign()> H = sequence({optional(Terminal('a'))});
-			tex( "a", H);
+			tex( "a", move(H));
 
 			reset();
 			function<Sign()> O = sequence({zeroOrMore(Terminal('1'))});
@@ -644,8 +609,8 @@ namespace peg{
 			tex( "-1234", R);
 //*/
 
-			//auto X = sequence({optional(Terminal('a')), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
-			//tex( "111", X);
+			auto X = sequence({optional(Terminal('a')), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
+			tex( "111", X);
 
 			for(auto v : passed_tests){
 				cout<< v;
