@@ -431,6 +431,7 @@ namespace peg{
 	}
 
 	bool tex( string code, function<Sign()> c,bool correct = true){
+		reset();
 		test_counter++;
 		cout<<"\x1b[32m#>- test "<<test_counter<< " Input:["<< code <<"]\x1b[39m\n";
 		cout<<"    - execute!\n";
@@ -595,7 +596,7 @@ namespace peg{
 
 			reset();
 			function<Sign()> O = sequence({zeroOrMore(Terminal('1'))});
-			tex( "123", O);
+			tex( "111", O);
 			reset();
 			function<Sign()> P = sequence({oneOrMore(Number())});
 			tex( "124", P);
@@ -610,7 +611,7 @@ namespace peg{
 //*/
 
 			auto X = sequence({optional(Terminal('a')), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
-			tex( "111", X);
+			tex( "a*", X);
 
 			for(auto v : passed_tests){
 				cout<< v;
