@@ -41,11 +41,39 @@ namespace peg{
 		char get_current_char(){
 			return raw_source_[cursor];
 		}
+
+		void mark(){
+			markers.push(cursor);
+		}
+		void back(){
+			cursor = markers.top();
+			markers.pop();
+		}
+		void remove(){
+			markers.pop();
+		}
+	
+		void clear(){
+			while(!markers.empty())
+				markers.pop();
+		}
+
+		void reset(){
+			cursor = 0;
+			max_cursor = 0;
+			route = "";
+			deep = 0;
+			this->clear();
+		}
+
+		void init(string t){
+			this->reset();
+			raw_source_ = t;			
+		}
+
 	};
 
 	shared_ptr<Context> context;
-
-	void log(string s);
 
 	string load_file(string filename){
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
@@ -70,22 +98,6 @@ namespace peg{
 		context->raw_rule_ = load_file(filename);
 	}
 	
-	void mark(){
-		context->markers.push(context->cursor);
-	}
-	void back(){
-		context->cursor = context->markers.top();
-		context->markers.pop();
-	}
-	void remove(){
-		context->markers.pop();
-	}
-
-	void clear(){
-		while(!context->markers.empty())
-			context->markers.pop();
-	}
-
 	class Sign{
 		vector<function<Sign()>> rules;
 	public:
@@ -120,12 +132,11 @@ namespace peg{
 
 		int execution(){
 			context->route += type + " ";
-			cout<<"      - execution! "<< type <<" \n";
 			if(type == "sequence"){
 				int start = context->cursor;
 				int num_rule = rules.size();
 				int seq_cursor = 0;
-				mark();
+				context->mark();
 				#ifdef DEBUG
 				cout<< "--- sequence! ["<< context->get_current_char()<<"]---\n";
 				cout<< "rules:" << rules.size() << endl;
@@ -144,11 +155,16 @@ namespace peg{
 						#ifdef DEBUG
 						cout << "execution in execution \n";
 						#endif
-						if(sign.execution() == 1){
+						auto exe_res =sign.execution();
+						if(exe_res == 1){
 							seq_cursor++;
+						}else if(exe_res == -1){
+							break;
 						}
 					}
 				}
+
+				cout <<" num:"<< num_rule <<" seq:"<< seq_cursor <<"\n";
 				if(num_rule == seq_cursor){
 					#ifdef DEBUG
 					cout << "seq success return 1\n";
@@ -157,14 +173,14 @@ namespace peg{
 				}
 				
 				if(start == seq_cursor){
-					back();
+					context->back();
 					#ifdef DEBUG
 					cout<< "           sequence back "<< context->cursor<< endl;
 					cout<< "seq faild return 0\n";
 					#endif
 					return 0;
 				}
-				back();	
+				context->back();	
 				#ifdef DEBUG
 				cout<< "seq faild return -1 ("<< context->cursor<<")\n";
 				#endif
@@ -174,7 +190,7 @@ namespace peg{
 				cout<< "--- orderedChoice! "<< context->get_current_char()<<"---\n";
 				#endif
 				for(auto r : rules){
-					mark();
+					context->mark();
 					auto sign = r();
 					if(sign.type == "Terminal"){
 						if(context->get_current_char() == sign.value){
@@ -187,14 +203,14 @@ namespace peg{
 							return 1;
 						}
 					}	
-					back();
+					context->back();
 					#ifdef DEBUG
 					cout<< "           orderedChoice back "<< context->cursor<< endl;				
 					#endif
 				}
 				return 0;
 			}else if(type == "optional"){
-				mark();
+				context->mark();
 				auto sign = rules.at(0)();
 				#ifdef DEBUG
 				cout<< "--- optional! ---\n";
@@ -206,23 +222,22 @@ namespace peg{
 						#ifdef DEBUG
 						cout<< "opt success return 1\n";
 						#endif
-						remove();
+						context->remove();
 						return 1;
 					}
 				}else{
 					auto res = sign.execution();
 					if(res == -1){
-						back();
+						context->back();
 						return -1;
 					}
 				}
-				remove();
+				context->remove();
 				#ifdef DEBUG
 				cout<< "opt none return 1\n";
 				#endif
 				return 1;
 			}else if(type == "zeroOrMore"){
-				cout <<" zOm:" << rules.size() << endl;				
 				auto sign = rules.at(0)();
 				#ifdef DEBUG
 				cout<< "--- zeroOrMore! "<< sign.type <<" ---\n";
@@ -236,21 +251,21 @@ namespace peg{
 						context->cursor++;
 						none = false;
 					}
-					return 1;
 				}else{
+					context->mark();
 					int res;
 					do{
 						res = sign.execution();
 					}while(res == 1);
-/*					if(res == -1){
+
+					if(res == -1){
+						context->back();
 						return -1;
 					}
-*/					
-					return 1;
 				}
 				return 1;				
 			}else if(type == "oneOrMore"){
-				mark();	
+				context->mark();	
 				auto sign = rules[0]();
 				#ifdef DEBUG
 				cout<< "--- oneOrMore! "<< sign.type <<" ---\n";
@@ -287,9 +302,9 @@ namespace peg{
 				#endif
 				if('0' <= context->get_current_char() && context->get_current_char() <= '9'){
 					context->cursor++;
-					return true;
+					return 1;
 				}
-				return false;
+				return 0;
 			}else if(type == "andPredicate"){
 				auto sign = rules[0]();
 				if(sign.type == "Terminal"){
@@ -355,66 +370,65 @@ namespace peg{
 		return []() -> Sign{ return Sign("Number"); };
 	}
 
-
 	int count = 0;
 	map<string, function<Sign()>> rules;
-	void init(){
-
+	void set_rule(){
 		rules["Value"] = []()-> Sign{
-			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
+			count ++;
+			if(count > 10)
+				return oneOrMore(Number())();
+			return  orderedChoice({
+						oneOrMore(Number()),
+						sequence({
+							Terminal('('), rules["Expr"], Terminal(')')
+						})
+					})();
 		};
-		rules["Product"] = []()-> Sign{
-			return sequence({ rules["Value"], zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), rules["Value"]}))})();
-		};
-		rules["Sum"] = []()-> Sign{
-			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
-		};
-		rules["Expr"] = []()-> Sign{
-			return rules["Sum"]();
-		};
+		rules["Product"] =
+			sequence({
+				rules["Value"],
+				zeroOrMore(
+					sequence({
+						orderedChoice({
+							Terminal('*'), Terminal('/')
+						}),
+						rules["Value"]
+					})
+				)
+			});
 
-		rules["A"] = []()-> Sign{			
-			count++;
-			return sequence({optional(sequence({Terminal('a'),Terminal('b')})), sequence({ Terminal('b'), rules["Expr"] }) })();
-		};
+		rules["Sum"] =
+			sequence({
+				rules["Product"],
+				zeroOrMore(
+					sequence({
+						orderedChoice({
+							Terminal('+'), Terminal('-')
+						}),
+						rules["Product"]
+					})
+				)
+			});
 
+		rules["Expr"] =
+			rules["Sum"];
+		
 		rules["S"] = []()-> Sign{
+			count = 0;
 			return sequence({rules["Expr"], endOfString()})();
 		};
-/*
-		rules["Value"] = []()-> Sign{
-			cout<<"Exec value\n";
-			return orderedChoice({ oneOrMore(Number()), sequence({Terminal('('), rules["Expr"], Terminal(')')})})();
-		};
-		rules["Product"] = []()-> Sign{
-			cout<<"Exec product\n";
-			return sequence({ rules["Value"], zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), rules["Value"]}))})();
-		};
-		rules["Sum"] = []()-> Sign{
-			cout<<"Exec sum\n";
-			return sequence({ rules["Product"], zeroOrMore(sequence({orderedChoice({Terminal('+'), Terminal('-')}), rules["Product"]}))})();
-		};
-		rules["Expr"] = []()-> Sign{
-			cout<<"Exec expr\n";
-			return rules["Sum"]();
-		};
-*/
 	}
 
-	void set_source(string s){
-		context->raw_source_ = s;
+	void init(){
+		context = make_shared<Context>(Context());
+		set_rule();
 	}
 
 	bool exec(string n){
-		set_source(n);
-		context->cursor = 0;
-		cout << "Input:"<< context->raw_source_ <<"\n";
-		init();
+		context->init(n);
+		cout<<"Start \n";
 		return rules["S"]().execution();
-		//return A()().execution();
-		//Expr()().execution();
 	}
-
 
 	string test_class = "";
 	int test_class_num = 0;
@@ -422,20 +436,11 @@ namespace peg{
 	vector<string> faild_tests;
 	int test_counter = 0;
 
-	void reset(){
-		context->cursor = 0;
-		context->max_cursor = 0;
-		context->route = "";
-		context->deep = 0;
-		clear();
-	}
-
 	bool tex( string code, function<Sign()> c,bool correct = true){
-		reset();
+		context->init(code);
 		test_counter++;
 		cout<<"\x1b[32m#>- test "<<test_counter<< " Input:["<< code <<"]\x1b[39m\n";
 		cout<<"    - execute!\n";
-		set_source(code);
 		auto res = sequence({c, endOfString()})().execution();
 		if(!((res > 0) ^ correct)){
 			passed_tests.push_back("     \x1b[32m     "+ to_string(test_counter) +" ["+ code +"] :"+ context->route +" is Passed! ("+ to_string(res) +") \x1b[39m\n");
@@ -453,10 +458,7 @@ namespace peg{
 		test_class_num++;
 	}
 
-	
 	void test(){
-		context = make_shared<Context>(Context());
-		
 		test_class = "Sequence";
 		test_init();
 		{
@@ -553,9 +555,10 @@ namespace peg{
 			tex( "-1234+5678", sequence({ optional(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}));
 			tex( "-1234", sequence({ optional(Terminal('-')), oneOrMore(Number()) }));
 			tex( "1234", sequence({ optional(Terminal('-')), oneOrMore(Number()) }));
-			tex( "1+", sequence({ Terminal('1'), oneOrMore(sequence({Terminal('*'),Terminal('1')}))}), false);
+			tex( "1*", sequence({ Terminal('1'), oneOrMore(sequence({Terminal('*'),Terminal('1')}))}), false);
 			tex( "+1234+5678-", sequence({ zeroOrMore(Terminal('-')), oneOrMore(Number()), Terminal('+'), oneOrMore(Number())}), false);
 			tex( "123",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}));
+			tex( "12",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 			tex( "1212",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')}))}));
 			tex( "33333",  sequence({ zeroOrMore(sequence({Terminal('1'), Terminal('2')})), Terminal('3')}), false);
 
@@ -571,47 +574,63 @@ namespace peg{
 		{
 			test_counter = 0;
 
-			reset();
 			auto C = optional(Terminal('a'));
 			tex( "a", C);
-			reset();
 			auto D = zeroOrMore(Terminal('a'));
 			tex( "aa", D);
-			reset();
 			auto E = oneOrMore(Terminal('a'));
 			tex( "aa", E);
-			reset();
 			auto F = oneOrMore(Number());
 			tex( "1234", F);
-			reset();
 			auto G = oneOrMore(sequence({Terminal('a'),Terminal('a')}));
 			tex( "aa", G);
-			reset();
 			function<Sign()> H1 = sequence({Terminal('w')});
 			tex( "w", H1);
 
-			reset();
 			function<Sign()> H = sequence({optional(Terminal('a'))});
 			tex( "a", move(H));
 
-			reset();
 			function<Sign()> O = sequence({zeroOrMore(Terminal('1'))});
 			tex( "111", O);
-			reset();
 			function<Sign()> P = sequence({oneOrMore(Number())});
 			tex( "124", P);
 
 
-			reset();
 			auto Q = sequence({zeroOrMore(Terminal('1')), Terminal('5')});
 			tex( "15", Q);
-			reset();
 			auto R = sequence({ optional(Terminal('-')), oneOrMore(Number()) });
 			tex( "-1234", R);
+			auto S = sequence({ optional(Terminal('-')), R});
+			tex( "-1234", S);
+			auto T = sequence({ optional(Terminal('-')), R});
+			tex( "--1234", T);
 //*/
 
-			auto X = sequence({optional(Terminal('a')), zeroOrMore(sequence({orderedChoice({Terminal('*'), Terminal('/')}), oneOrMore(Number())}))});
-			tex( "a*", X);
+			auto X = 
+			sequence({
+				optional(Terminal('a')),
+				zeroOrMore(
+					sequence({
+						orderedChoice({Terminal('*'), Terminal('/')}),
+						oneOrMore(Number())
+					})
+				)
+			});
+
+			tex( "a*", X, false);
+		}
+
+		cout<< "\e[96m# Test for calculator\033[0m\n";
+		{
+			test_counter = 0;
+
+			tex( "1+1", rules["S"]);
+			tex( "123+456", rules["S"]);
+			tex( "+", rules["S"],false);
+			tex( "a", rules["S"],false);
+
+			tex( "1*", rules["S"],false);
+
 
 			for(auto v : passed_tests){
 				cout<< v;
@@ -623,17 +642,6 @@ namespace peg{
 				cout<< v;
 			}
 			cout <<"Faild test "<< faild_tests.size() - test_class_num << "/"<<( passed_tests.size() + faild_tests.size() - test_class_num*2 )<<" \n";
-		}
-
-		/*		
-		cout<< "\e[96m# Test for calculator\033[0m\n";
-		{
-			test_counter = 0;
-			init();
-
-			tex( "1+1", rules["S"]);
-			tex( "123+456", rules["S"], false);
-			tex( "1*3", rules["S"], false);
 
 		}
 		// */
