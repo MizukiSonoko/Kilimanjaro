@@ -12,63 +12,86 @@
 
 namespace parser{
 
- 	class Sign_{
-        std::string name_;
-        bool isTerm_;
-      public:
-        Sign_(std::string n, bool t){
-            name_ = n;
-            isTerm_ = t;
-        }
-		Sign_(std::string n){
-			name_ = n;
-		    isTerm_ = true;	
-		}
-		Sign_(){
-			name_ ="";
-			isTerm_ = true;
-		}
-        bool isTerm(){
-            return isTerm_;
-        }
-        std::string name(){
-            return name_;
-        }
+	using namespace std;
+
+ 	struct Sign{
+
+        std::string name;
+        bool isTerm;
+
+        Sign(std::string n, bool t):
+	        name(move(n)),
+	        isTerm(move(t))
+        {}
+
+		Sign(std::string n):
+			name(move(n)),
+		    isTerm(true)
+	    {}
+
+		Sign():
+			name(""),
+			isTerm(true)
+		{}
+
 		operator std::string() const{
-    		return name_;
+    		return name;
+		}
+ 
+		bool operator==(const Sign& rhs) const{
+			return name == rhs.name;
+		};
+	
+		inline bool operator!=(const Sign& rhs) const{
+			return !(*this == rhs);
 		}
 	};
 
-	
-	using Sign = std::shared_ptr<Sign_>;
-    
-	class Item{
-	  public:
+    class HashSign {
+		public:
+	    size_t operator()(const Sign& s) const {
+	        const int C =  9873967;
+	        size_t t = 0;
+	        for(int i = 0; i != s.name.size(); ++i) {
+	            t = t * C + (char)s.name[i];
+	        }
+	        return t;
+	    }
+	};
+
+	struct Item{
         Sign left;
         std::vector<Sign> rights;
         int pos;
-        Item(Sign l, std::initializer_list<Sign> const & r){
-			pos = 0;
-            left = l;
-            rights.insert(rights.end(),r.begin(), r.end());
-        }
+
+        Item(Sign l, vector<Sign> r):
+        pos(0),
+        left(move(l)),
+        rights(move(r))
+        {}
+
         Sign nextSign(){
-        	return rights[pos];
+        	if(isLast())
+        		return Sign();
+        	return rights.at(pos);
         }
+
         void next(){
-			if(rights.size() > pos+1)
-            	pos++;
+        	pos++;
         }
+
 		bool isLast(){
-			return pos == rights.size()-1;
+			return pos == rights.size();
 		}
+
 		friend std::ostream& operator<<(std::ostream &out, const Item &i){
-			out << std::string(*i.left) <<" => ";
+			out << std::string(i.left) <<" => ";
+
 			if(i.pos == 0){
 				out<< " . ";
 			}
 			for(int j=0;j<i.rights.size();j++){
-				out << std::string(*i.rights[j]);
+				out << std::string(i.rights.at(j));
 				if(i.pos == j+1){
 					out<< " . ";
 				}else{
@@ -80,11 +103,37 @@ namespace parser{
 		}
 	};
 	
+	struct State{
+		int id;
+		vector<Item> items;
+		unordered_map<string, int> transitions;
+		State():
+			id(-1)
+		{}
+
+		State(int id):
+			id(id)
+		{}
+
+		void append(vector<Item> newItems){
+			items.insert(items.end(), move(newItems).begin(), move(newItems).end());
+		}
+
+		friend std::ostream& operator<<(std::ostream &out, const State &s){
+			out <<"- Q"<< std::to_string(s.id) <<" -\n";
+			for(auto item : s.items){
+				cout <<" "<< item;
+			}
+			out << "\n";
+			return out;
+		}
+	};
+
 	Sign mS(std::string name){
-		return Sign(new Sign_(name,false));
+		return Sign(name,false);
 	}
 	Sign mtS(std::string name){
-		return Sign(new Sign_(name));
+		return Sign(name);
 	}
 
     auto  E = mS("E");
@@ -96,13 +145,12 @@ namespace parser{
 	auto Eps = mtS("Epsilon");
 	auto Fin = mtS("Fin");
 
-	std::vector<Item> rules;
+	std::vector<Item> grammar;
 
 	std::vector<Item> getItems(Sign s){
-		//std::cout << std::string(*s) << std::endl;
 		std::vector<Item> res;
-		for(auto& i : rules){
-			if(i.left->name() == s->name()){
+		for(auto& i : grammar){
+			if(i.left.name == s.name){
 				res.push_back(i);
 			}
 		}
@@ -110,7 +158,7 @@ namespace parser{
 	}
 
     std::vector<Sign> first(Sign sign){
-        if(sign->isTerm()){
+        if(sign.isTerm){
             return {sign};
         }
         std::vector<Sign> res; 
@@ -119,11 +167,9 @@ namespace parser{
 			return res;
 
         for(auto& i : items){
-			//std::cout << std::string( *i.left ) << " " << i.rights.size()  <<std::endl;
         	auto ext = first(i.rights[0]);
             if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-				//std::cout <<"Eps!\n";
-            	ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
+				ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
                	res.insert(res.end(), ext.begin(), ext.end());
                     if(i.rights.size() >= 2){
                         auto nxt = first(i.rights[1]);
@@ -138,7 +184,7 @@ namespace parser{
         return res;
     }
 
-    std::vector<Sign> first(std::initializer_list<Sign>& l){
+    std::vector<Sign> first(vector<Sign>& l){
         if(l.size() == 0)
             return {Eps};
 
@@ -146,7 +192,7 @@ namespace parser{
         
         auto it = l.begin();
         if(*it == Eps) return {Eps};
-        if((*it)->isTerm()) return {*it};
+        if((*it).isTerm) return {*it};
 
         auto ext = first(*it); 
         if(find(ext.begin(), ext.end(), Eps) != ext.end()){
@@ -163,19 +209,18 @@ namespace parser{
         return ext;
     }
 
-    std::vector<Sign> follow(Sign& s){
-		std::cout<< std::string(*s) << std::endl;
+    std::vector<Sign> follow(Sign s){
         std::vector<Sign> res;
         
         if(s == E){
             res.push_back(Fin);
         }
 
-        for(auto rit = rules.cbegin(); rit != rules.cend(); ++rit){
-            auto ls = rit->left; 
+        for(auto rit = grammar.cbegin(); rit != grammar.cend(); ++rit){
+            auto ls = (*rit).left; 
             if(ls == s) continue;
 
-			auto rs = rit->rights;
+			auto rs = (*rit).rights;
             for(size_t i = 1; i < rs.size(); i++){
             	if(rs[i] == s){
                 	if(i + 1 < rs.size()){                            
@@ -196,152 +241,103 @@ namespace parser{
         return res;
     }
 
-	void closure(std::vector<Item>& I){
-		int size = I.size();
-		std::vector<Sign> alreadys;
-		do{
-			size = I.size();
-			std::cout<<"LOOP\n";
-			for(auto i : I){
-				//std::cout<< i << std::endl;
-				auto X = getItems( i.nextSign() );
+    unordered_map<Sign, vector<Sign>, HashSign> follows;
+	vector<shared_ptr<State>> DFAutomaton;
+	
+	void generateDFAutomaton(int st){
+		cout<< "generateDFAutomaton("<<st<<") "<<DFAutomaton.size()<<"\n";
 
-				std::cout<< "SIZE:"<<X.size()<<std::endl;
-				//std::cout<<"item \n";
-				for(auto x : X){
-					std::cout<< "#######\n" << x <<"\n";
-					//if(find(alreadys.begin(), alreadys.end(), x.left) != alreadys.end()){
-						//std::cout<<":CON\n";
-					//		continue;
-					//}
-					//std::cout<<"loop\n";
-					//x.next();
-					//std::cout<<"push X\n";
-					I.push_back(x);
-					//alreadys.push_back(x.left);
+		vector<int> newStateNumbers;
+		auto state = DFAutomaton.at(st);
+
+		for(auto item : state->items){
+			if(!item.isLast()){
+				auto first = item.nextSign();
+
+				if(!first.isTerm){
+					state->append(getItems(first));
 				}
-			}
-			std::cout<< size <<" "<<I.size() << "\n";
-		}while( size != I.size() );
-	}
 
-	std::vector<Item> Goto(std::vector<Item> I,Sign X){
-		std::vector<Item> J;
-		/*
-		std::cout << "Goto argv b--------\n";
-		for(auto i : I) std::cout<< i;
-		std::cout<< std::string(*X)<<std::endl;;
-		std::cout << "Goto argv e--------\n";
-		// */
-		for(auto i : I){
-			if(i.nextSign() == X && !i.isLast()){
-				//std::cout<<"1^^^^\n";
-				i.next();
-				//std::cout<< i;
-            	J.push_back(i);
-				//std::cout<<"2^^^^\n";
-			}
-		}
-		closure(J);
-		return J;
-	}
-
-	void DFA(){
-		std::cout<<"Start\n";
-		std::vector<std::vector<Item>> T;
-		std::vector<std::vector<Item>> Tt;
-		std::vector<Item> f({ Item( mS("S"),{ E, Fin}) });
-		closure(f);
-		T.push_back(f);
-		int size = T.size();
-		int count = 0;
-		std::cout<< f[0];
-		std::cout<<"++++++++++++++++\n";
-		Tt = T;
-		std::vector<Sign> alreadys;
-		while( count < 5){
-			count++;
-			for(auto t : T){
-				for(auto i : t){
-					std::cout<< "i loop start\n"<< i;
-					if(find(alreadys.begin(), alreadys.end(), i.nextSign()) != alreadys.end())
-						continue;
-					alreadys.push_back(i.nextSign());
-					auto J = Goto( t, i.nextSign());
-					std::cout << "***************************\n";
-					std::cout << "I:"<< std::string(*i.nextSign()) << std::endl;
-					for(auto j : J)
-						std::cout << j;
-					std::cout << "***************************\n";
-					T.push_back(J);
-					std::cout<<"i loop end\n";
+				if(state->transitions.find(first) == state->transitions.end()){
+					DFAutomaton.push_back(make_shared<State>(st+1));
+					state->transitions[first] = DFAutomaton.size() - 1;
+					newStateNumbers.push_back(DFAutomaton.size() - 1);
 				}
-				std::cout<<"t loop end\n";
-			}
-			std::cout<< size << " " << T.size() << std::endl; 
-			if( size != T.size()){
-				size = T.size();
-			}else{
-				break;
+				item.next();
+				DFAutomaton.at(DFAutomaton.size() - 1)->append({item});
 			}
 		}
-		std::cout<<"####################\n";
-		for(auto t : T){
-			std::cout<<"~~~~~~~~~~~~~~~\n";
-			for(auto i : t){
-				std::cout<< i;
-			}
-		}
+
+		cout << DFAutomaton.at(DFAutomaton.size() - 1)->items.size() << " " <<DFAutomaton.size() - 1 << endl;
+		for(auto s : newStateNumbers){
+       		generateDFAutomaton(s);
+       	}
 	}
+	
 	void setup(){
 
-        rules.push_back(Item( E,
+        grammar.push_back(Item( E,
             { T, Eq }
         ));
 
-        rules.push_back(Item( Eq,
+        grammar.push_back(Item( Eq,
             {mtS("+"), T,  Eq }
         ));
-        rules.push_back(Item( Eq,
+        grammar.push_back(Item( Eq,
             { Eps }
         ));
         
-		rules.push_back(Item( T,
+		grammar.push_back(Item( T,
             { F, Tq}
         ));
         
-		rules.push_back(Item( Tq,
+		grammar.push_back(Item( Tq,
             { mtS("*"), F, Tq }
         ));
-        rules.push_back(Item( Tq,
+        grammar.push_back(Item( Tq,
             { Eps }
         ));
 
-        rules.push_back(Item( F,
+        grammar.push_back(Item( F,
             { mtS("("), E, mtS(")")}
         ));
-        rules.push_back(Item( F,
+        grammar.push_back(Item( F,
             { mtS("i")}
 		));
+
+		for(auto I : grammar){
+			follows.emplace( I.left, follow(I.left));
+		}
+
+		auto Q0 = make_shared<State>(0);
+		Q0->append(getItems(E));
+		DFAutomaton.push_back(Q0);
+
+		generateDFAutomaton(0);
+
+		for(int i=0;i<DFAutomaton.size();i++){
+			cout << *DFAutomaton[i] << endl;
+		}
     } 
 
 	using namespace std;
     
     void test(Sign S){
-        std::cout << "==== "<<std::string(*S)<< " ===\n";        
+        std::cout << "==== First is ==="<<std::string(S)<< " ===\n";        
         for(auto& s: first(S)){
-            std::cout << std::string(*s) << std::endl;
+            std::cout << std::string(s) << std::endl;
         }
-        std::cout<<"===\n";
+        std::cout<<"===== Follow is ===\n";
         for(auto& r: follow(S)){
-            std::cout << std::string(*r) << std::endl;
+            std::cout << std::string(r) << std::endl;
         }
 	}
 
 
     void parser(){
-        setup();        
-        /*
+        setup();   
+
+/*		     
 		test(E);
 
         test(Eq);
@@ -351,23 +347,22 @@ namespace parser{
         test(Tq);
 
         test(F);
-		
+
         std::cout<<"===\n";
 		std::vector<Item> items = { Item( mS("S"), { E, Fin}) };
         closure(items);
 		std::cout<<"~~~~~~~~~~~~~~~\n";
         for(auto i : items)
 			std::cout << i;
-		*/
-		DFA();
 	
         //delete items;
         
         //create_dfa();
         //for(auto rit = rule_table.begin(); rit != rule_table.end(); ++rit){
-        //    if(rit->second)
-        //        rit->second.reset();
+        //    if(rit.second)
+        //        rit.second.reset();
         //}
+*/        
     }
 }
 
