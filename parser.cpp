@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <algorithm>
 
+#include <iomanip>
 
 #include <iostream>
 
@@ -151,6 +152,21 @@ namespace parser{
 		}
 	};
 
+	struct Action{
+		int id;
+		enum A{
+			SHIFT,
+			GOTO,
+			REDUCE,
+			ACCEPT
+		} action;
+
+		Action(int id,A action):
+			id(move(id)),
+			action(move(action))
+		{}
+	};
+
 	Sign mS(std::string name){
 		return Sign(name,false);
 	}
@@ -233,7 +249,6 @@ namespace parser{
         return ext;
     }
 
-
     std::vector<Sign> follow(Sign s){
         std::vector<Sign> res;
         
@@ -293,7 +308,7 @@ namespace parser{
 */
     unordered_map<Sign, vector<Sign>, HashSign> follows;
 	vector<shared_ptr<State>> DFAutomaton;
-	unordered_map<string, int> transitions;
+	unordered_multimap<Sign, pair<int,int>, HashSign> transitions;
 
 	int cnt = 0;
 	void generateDFAutomaton(int st){
@@ -321,8 +336,8 @@ namespace parser{
 
 			if(!item.isLast()){
 				if(transitions.find(first.name) == transitions.end()){
-					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size() - 1));
-					transitions[first] = DFAutomaton.size() - 1;
+					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size()));
+					transitions.emplace(first, make_pair( DFAutomaton.size()-1, st));
 					newStateNumbers.push_back(DFAutomaton.size() - 1);
 
 				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
@@ -341,8 +356,8 @@ namespace parser{
 
 			if(!item.isLast()){
 				if(transitions.find(first.name) == transitions.end()){
-					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size() - 1));
-					transitions[first] = DFAutomaton.size() - 1;
+					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size()));
+					transitions.emplace(first, make_pair( DFAutomaton.size()-1, st));
 					newStateNumbers.push_back(DFAutomaton.size() - 1);
 				}
 				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
@@ -351,11 +366,6 @@ namespace parser{
 				
 			}
 		}
-
-		for(auto itr = transitions.begin(); itr != transitions.end(); ++itr) {
-        	std::cout << "key = " << itr->first
-	        << ", val = " << itr->second << "\n";
-    	}
 
 		for(auto s : newStateNumbers){
 			//cout<< st <<"'s sub generateDFAutomaton("<<s<<") "<<(*DFAutomaton[s]).items.size()<<"\n";
@@ -411,6 +421,48 @@ namespace parser{
 		for(int i=0;i<DFAutomaton.size();i++){
 			cout << *DFAutomaton[i] << endl;
 		}
+
+		for(auto itr = transitions.begin(); itr != transitions.end(); ++itr) {
+        	std::cout << "key = " << itr->first.name
+	        << ": from:"<< itr->second.second<< " to:" << itr->second.first << "\n";
+    	}
+
+    	vector<unordered_map<Sign, shared_ptr<Action>, HashSign>> parserTable(DFAutomaton.size());
+
+		for(auto it = transitions.begin(); it != transitions.end(); ++it){
+			if(it->first.isTerm){
+				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::SHIFT));
+				cout <<"shift("<< it->second.second <<","<< it->second.first <<")\n";
+			}else{
+				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::GOTO));
+				cout <<"goto("<< it->second.second <<","<< it->second.first <<")\n";
+			}
+		}
+
+
+		vector<Sign> signs{mtS("i"), mtS("*"), mtS("+"), mtS("("), mtS(")"), E, Eq, T, Tq, F};		
+		cout<<"  |";
+		for(auto s : signs){
+			cout <<setw(2)<< string(s) <<"|  ";
+		}
+		cout << endl; 
+		for(int i=0;i< parserTable.size();i++){
+			cout <<setw(2)<< i << "|";
+			for(auto s : signs){
+				if(parserTable.at(i).find(s) != parserTable.at(i).end()){
+					auto ac = parserTable.at(i).find(s)->second;
+					if(ac->action == Action::SHIFT){
+						cout << "s"<<setw(2)<< ac->id <<"|";
+					}else{
+						cout << "g"<<setw(2)<< ac->id <<"|";
+					}
+				}else{
+					cout << "   |";
+				}
+			}
+			cout << endl;
+		}
+//    	parserTableparserTable.
     } 
 
 	using namespace std;
