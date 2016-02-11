@@ -84,6 +84,16 @@ namespace parser{
 			return pos == rights.size();
 		}
 
+		int posOf(Sign s){
+			int i = 0;
+			for(auto v : rights){
+				if(v == s)
+					return i;
+				i++;
+			}
+			return -1;
+		}
+
 		friend std::ostream& operator<<(std::ostream &out, const Item &i){
 			out << std::string(i.left) <<" => ";
 
@@ -106,7 +116,8 @@ namespace parser{
 	struct State{
 		int id;
 		vector<Item> items;
-		unordered_map<string, int> transitions;
+		vector<Item> expands;
+
 		State():
 			id(-1)
 		{}
@@ -116,13 +127,24 @@ namespace parser{
 		{}
 
 		void append(vector<Item> newItems){
-			items.insert(items.end(), move(newItems).begin(), move(newItems).end());
+			this->items.insert(items.end(), move(newItems).begin(), move(newItems).end());
+		}
+
+		void expand(vector<Item> newItems){
+			this->expands.insert(expands.end(), move(newItems).begin(), move(newItems).end());
+		}
+
+		void merge(){
+			this->items.insert(items.end(), expands.begin(), expands.end());
 		}
 
 		friend std::ostream& operator<<(std::ostream &out, const State &s){
 			out <<"- Q"<< std::to_string(s.id) <<" -\n";
 			for(auto item : s.items){
 				cout <<" "<< item;
+			}
+			for(auto item : s.expands){
+				cout <<"  "<< item;
 			}
 			out << "\n";
 			return out;
@@ -141,6 +163,8 @@ namespace parser{
     auto  T = mS("T");
     auto Tq = mS("Tq");
     auto  F = mS("F");
+
+	auto  S = mS("S");
 
 	auto Eps = mtS("Epsilon");
 	auto Fin = mtS("Fin");
@@ -209,6 +233,7 @@ namespace parser{
         return ext;
     }
 
+
     std::vector<Sign> follow(Sign s){
         std::vector<Sign> res;
         
@@ -241,35 +266,99 @@ namespace parser{
         return res;
     }
 
+
+/*
+
+    std::vector<Sign> follow(Sign s){
+    	if(s == E)
+    		return { Eps };
+
+    	cout << string(s) << endl;
+        std::vector<Sign> res;
+	    for(auto item : grammar){
+        	if(item.posOf(s) == -1)
+        		continue;
+
+            if(item.posOf(s) == item.rights.size()-1){
+            	if(s != item.left){
+	            	auto newFollow = follow(item.left);
+	                res.insert(res.end(), newFollow.begin(), newFollow.end());
+	            }
+            }else{
+                res.push_back(item.rights.at(item.posOf(s)+1));
+            }
+	    }
+	    return res;
+	}
+*/
     unordered_map<Sign, vector<Sign>, HashSign> follows;
 	vector<shared_ptr<State>> DFAutomaton;
-	
-	void generateDFAutomaton(int st){
-		cout<< "generateDFAutomaton("<<st<<") "<<DFAutomaton.size()<<"\n";
+	unordered_map<string, int> transitions;
 
+	int cnt = 0;
+	void generateDFAutomaton(int st){
+		/*
+		cout<< "generateDFAutomaton("<<st<<") \n";
+		for(auto i : (*DFAutomaton[st]).items)
+			cout << i;
+		cout << "============\n";
+		cnt++;
+		if(cnt > 100) return;
+		*/
 		vector<int> newStateNumbers;
 		auto state = DFAutomaton.at(st);
-
+		
 		for(auto item : state->items){
+			//cout <<" size is "<< state->items.size() << endl;
+			Sign first = item.nextSign();
+			if(first.name=="")
+				continue;
+			
+			//cout << string(first) << endl;
+			if(!first.isTerm){
+				state->expand(getItems(first));
+			}
+
 			if(!item.isLast()){
-				auto first = item.nextSign();
-
-				if(!first.isTerm){
-					state->append(getItems(first));
-				}
-
-				if(state->transitions.find(first) == state->transitions.end()){
-					DFAutomaton.push_back(make_shared<State>(st+1));
-					state->transitions[first] = DFAutomaton.size() - 1;
+				if(transitions.find(first.name) == transitions.end()){
+					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size() - 1));
+					transitions[first] = DFAutomaton.size() - 1;
 					newStateNumbers.push_back(DFAutomaton.size() - 1);
-				}
+
+				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
 				item.next();
 				DFAutomaton.at(DFAutomaton.size() - 1)->append({item});
+
+				}
+			}
+		}
+		//cout << "extends\n";
+		for(auto item : state->expands){
+			Sign first = item.nextSign();
+			if(first.name=="")
+				continue;
+			//cout << string(first) << endl;
+
+			if(!item.isLast()){
+				if(transitions.find(first.name) == transitions.end()){
+					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size() - 1));
+					transitions[first] = DFAutomaton.size() - 1;
+					newStateNumbers.push_back(DFAutomaton.size() - 1);
+				}
+				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
+				item.next();
+				DFAutomaton.at(DFAutomaton.size() - 1)->append({item});
+				
 			}
 		}
 
-		cout << DFAutomaton.at(DFAutomaton.size() - 1)->items.size() << " " <<DFAutomaton.size() - 1 << endl;
+		for(auto itr = transitions.begin(); itr != transitions.end(); ++itr) {
+        	std::cout << "key = " << itr->first
+	        << ", val = " << itr->second << "\n";
+    	}
+
 		for(auto s : newStateNumbers){
+			//cout<< st <<"'s sub generateDFAutomaton("<<s<<") "<<(*DFAutomaton[s]).items.size()<<"\n";
        		generateDFAutomaton(s);
        	}
 	}
@@ -305,16 +394,20 @@ namespace parser{
             { mtS("i")}
 		));
 
+        grammar.push_back(Item( S,
+            { E, Fin}
+		));
+
 		for(auto I : grammar){
 			follows.emplace( I.left, follow(I.left));
 		}
 
 		auto Q0 = make_shared<State>(0);
-		Q0->append(getItems(E));
+		Q0->append(getItems(S));
 		DFAutomaton.push_back(Q0);
 
 		generateDFAutomaton(0);
-
+		cout << "=======\n";
 		for(int i=0;i<DFAutomaton.size();i++){
 			cout << *DFAutomaton[i] << endl;
 		}
