@@ -11,11 +11,12 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/IRPrintingPasses.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/IR/ValueHandle.h>
 
 #include <string>
 #include <memory>
 
-namespace codegen{
+namespace CodeGen{
 
     using namespace std;
 
@@ -65,6 +66,12 @@ namespace codegen{
         );
     }
 
+    llvm::Value* add(llvm::Value* lhs,llvm::Value* rhs){
+      return llvm::BinaryOperator::CreateAdd(lhs, rhs);
+    }
+
+
+
     void init(){
         context = make_shared<CodeGenContext>("sharo");
     }
@@ -73,5 +80,7 @@ namespace codegen{
 
 int main(){
 
+    CodeGen::init();
+    auto main = CodeGen::makeFunction<int>("main");
     return 0;
   }
