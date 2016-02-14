@@ -40,9 +40,9 @@ namespace CodeGen{
 
     shared_ptr<CodeGenContext> context;
 
-    void setEntry(llvm::Function function){
+    void setEntry(llvm::Function* function){
       llvm::BasicBlock* entry = llvm::BasicBlock::Create( context->context, "entry", function);
-      context->builder.setInsertPoint(entry);
+      context->builder.SetInsertPoint(entry);
     }
 
     template<typename T>
@@ -96,5 +96,6 @@ int main(){
 
     CodeGen::init();
     auto main = CodeGen::makeFunction<int>("main");
+
     return 0;
   }
