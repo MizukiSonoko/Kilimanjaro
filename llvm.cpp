@@ -40,6 +40,11 @@ namespace CodeGen{
 
     shared_ptr<CodeGenContext> context;
 
+    void setEntry(llvm::Function function){
+      llvm::BasicBlock* entry = llvm::BasicBlock::Create( context->context, "entry", function);
+      context->builder.setInsertPoint(entry);
+    }
+
     template<typename T>
     llvm::Function* makeFunction(string  name){
       return nullptr;
@@ -47,12 +52,14 @@ namespace CodeGen{
 
     template<>
     llvm::Function* makeFunction<int>(string  name){
-      return  llvm::Function::Create(
+      auto function = llvm::Function::Create(
           llvm::FunctionType::get( context->builder.getInt32Ty(), false ),
           llvm::Function::ExternalLinkage,
           name,
           context->module
         );
+      setEntry(function);
+      return function;
     }
 
 
@@ -67,9 +74,16 @@ namespace CodeGen{
     }
 
     llvm::Value* add(llvm::Value* lhs,llvm::Value* rhs){
-      return llvm::BinaryOperator::CreateAdd(lhs, rhs);
+      return llvm::BinaryOperator::CreateAdd(move(lhs), move(rhs));
     }
 
+    llvm::Value* sub(llvm::Value* lhs,llvm::Value* rhs){
+      return llvm::BinaryOperator::CreateSub(move(lhs), move(rhs));
+    }
+
+    llvm::Value* mul(llvm::Value* lhs,llvm::Value* rhs){
+      return llvm::BinaryOperator::CreateMul(move(lhs), move(rhs));
+    }
 
 
     void init(){
