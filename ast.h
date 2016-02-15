@@ -1,20 +1,22 @@
 #include <map>
 #include <string>
 
+class Type{
+    
+};
 template<typename T>
 class AST{
-	string name;
+	std::string name;
 	Type type;
-	map<string,AST> childs;
+	std::map<std::string,AST> childs;
 
 	public:
-	AST(string name,Type type):
-		name(move(name)),
-		type(move(type))
+	AST(std::string name,Type type):
+		name(std::move(name)),
+		type(std::move(type))
 	{}
 
-	append(string name,AST ast){
-		childs[name] = move(ast);
+	void append(std::string name,AST ast){
+		childs[name] = std::move(ast);
 	}
-
 };

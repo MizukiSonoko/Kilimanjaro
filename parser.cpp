@@ -1,15 +1,5 @@
-#include <functional>
-#include <initializer_list>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <algorithm>
-
+#include "parser.h"
 #include <iomanip>
-
-#include <iostream>
-
-#include <memory>
 
 namespace parser{
 
@@ -246,8 +236,8 @@ namespace parser{
 				res.push_back(Eps);
 			}
         }
-        return ext;
     }
+
 
     std::vector<Sign> follow(Sign s){
         std::vector<Sign> res;
@@ -276,11 +266,16 @@ namespace parser{
                         res.insert(res.end(), left.begin(), left.end());
                     }
                 }
+                case_num ++;
             }
+            return 0;
         }
-        return res;
-    }
+    };
 
+    bool match(){
+            Token  token =  Core::LT(1);
+            return Core::nextToken();
+    }
 
 /*
 
@@ -464,9 +459,6 @@ namespace parser{
 		}
 //    	parserTableparserTable.
     } 
-
-	using namespace std;
-    
     void test(Sign S){
         std::cout << "==== First is ==="<<std::string(S)<< " ===\n";        
         for(auto& s: first(S)){
@@ -476,21 +468,18 @@ namespace parser{
         for(auto& r: follow(S)){
             std::cout << std::string(r) << std::endl;
         }
-	}
-
+    }
 
     void parser(){
         setup();   
 
 /*		     
 		test(E);
-
-        test(Eq);
-
-        test(T);
-
-        test(Tq);
-
+=======
+            if(tokens.size() == 1) return true;
+            match();
+            return true;
+        }
         test(F);
 
         std::cout<<"===\n";
@@ -509,36 +498,83 @@ namespace parser{
         //}
 */        
     }
+
+    void loadRule(list<Token> rt){
+        cout<<"Load rule set\n";
+        map<string, vector< vector<pair<string,Token::Type>>>> ruleset;
+        vector<pair<string,Token::Type>> tmps;
+
+        int status = 0;
+        string name = "";
+        for(auto t : rt){
+            switch(t.type()){
+                case Token::LABRACKET:
+                    if(status == 0){
+                        status = 1;
+                    }
+                    break;
+                case Token::IDENTIFIER:
+                    if(status == 1){
+                        name = t.value();
+                        status = 2;
+                    }else if(status == 6){
+                        tmps.push_back(make_pair(t.value(), Token::NONE));                        
+                    }
+                    break;
+                case Token::RABRACKET:
+                    if(status == 2){
+                        status = 3;
+                    }
+                    break;
+                case Token::COLON:
+                    if(status == 3 ){
+                        status++;
+                    }else if(status == 4){
+                        status = 5;
+                    }
+                    break;
+                case Token::EQUAL:
+                    if(status == 5){
+                        status = 6;
+                    }
+                    break;
+                case Token::PERIOD:
+                    if(status == 6){
+                        status = 0;
+                        cout<<"---- Rule ----\n";
+                        cout << name << " -> ";
+                        for(auto p : tmps){
+                            cout << p.first <<" ";
+                        }
+                        cout<<"\n--------------\n";
+                        Rule::rules[name].push_back(tmps);
+                        tmps.clear();
+                    }
+                    break;
+                default:
+                    if(status == 6){
+                        if(t.type() == Token::IDENTIFIER){
+                            tmps.push_back(make_pair(t.value(), Token::NAME));
+                        }else{
+                            tmps.push_back(make_pair(t.value(), t.type()));
+                        }
+                    }
+            }
+        }
+        cout<<"Done\n";
+    }
+
+    AST::AST* parser(list<Token> t){
+        log(log_pos, "Parse start!");
+        tokens = t;
+        buf_index = 0;
+        while(markers.size()!=0){
+            markers.pop();
+        }
+        headTokens.clear();
+
+        auto res = match("PS");
+        cout << res << endl;
+        return nullptr;
+    }
 }
-
-
-int main(){
-    parser::parser();
-    return 0;
-}
-/*
- * ==== T ===
- * (
- * i
- * ===
- * FIN
- * )
- * +
- * ==== Tq ===
- * *
- * Epsilon
- * ===
- * FIN
- * )
- * +
- * ==== F ===
- * (
- * i
- * ===
- * FIN
- * )
- * +
- * *
- * ===
- */
-

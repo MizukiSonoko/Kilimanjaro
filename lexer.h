@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <cassert>
 #include <list>
@@ -16,9 +18,7 @@ namespace lexser{
 	};
 
 	bool loader(string filename);
+	list<Token> tokens();
 	void lexser();
-
-  	string rowString_;
-	list<Token> tokens_;
 
 };

@@ -3,6 +3,10 @@
 namespace lexser{
 	using namespace std;
 
+	
+  	string rowString_;
+	list<Token> tokens_;
+
 	namespace decide{
 		bool isNumber(char c){
 	        return c >= '0' && c <= '9'?
@@ -33,10 +37,17 @@ namespace lexser{
 		}
 	};
 
+	void clean(){
+		tokens_.clear();
+		rowString_ = "";
+	}
+	
 	bool loader(string filename){
+		clean();
 		std::ifstream ifs( filename, std::ios::in | std::ios::binary);
 		if(ifs.fail()){
-			throw std::runtime_error("\n\033[1;31mNo such file or directory \""+ filename +"\"\033[0m\n");
+			exit(1);
+			//throw std::runtime_error("\n\033[1;31mNo such file or directory \""+ filename +"\"\033[0m\n");
 		}
 		ifs.seekg( 0, std::ios::end);
 		int pos = ifs.tellg();
@@ -47,11 +58,14 @@ namespace lexser{
 		rowString_ = std::move(string(buf.begin(),buf.end()));
 		return true;
 	}
-	
+
+	list<Token> tokens(){
+		return tokens_;
+	}
+
 	void lexser(){
 		int status = 0;
     	string buffer = "";
-    	char next = 0;
     	char c;
         for(int i = 0;i < rowString_.size();){
         	c = rowString_[i]; 
@@ -118,6 +132,12 @@ namespace lexser{
 			                case '[':
 			                    tokens_.push_back(Token(Token::LBRACKET,"["));
 			                    break;
+			                case '}':
+			                    tokens_.push_back(Token(Token::RCBRACKET,"}"));
+			                    break;
+			                case '{':
+			                    tokens_.push_back(Token(Token::LCBRACKET,"{"));
+			                    break;
 			                case '>':
 			                    tokens_.push_back(Token(Token::RABRACKET,">"));
 			                    break;
@@ -138,6 +158,12 @@ namespace lexser{
 			                    break;
 			                case '^':
 			                    tokens_.push_back(Token(Token::CARET,"^"));                    
+			                    break;
+			                case '#':
+			                    tokens_.push_back(Token(Token::SHARPE,"#"));                    
+			                    break;
+			                case '~':
+			                    tokens_.push_back(Token(Token::WAVY,"~"));
 			                    break;
 			                case '@':
 			                    tokens_.push_back(Token(Token::AT_SIGN,"@"));
@@ -167,23 +193,7 @@ namespace lexser{
 	            	}		        
             }
         }
-        tokens_.push_back(Token(Token::FIN,"<FIN>"));        
+        tokens_.push_back(Token(Token::FIN,"<FIN>"));
 	}
 
-	void test(){
-		for(auto v : tokens_){
-			cout<<"<"<< v.type() << "," << v.value() << ">\n";
-		}
-	}
 };
-
-int main(int argc, char* argv[]){
-	if(argc == 2){
-		lexser::loader(std::string(argv[1]));
-		lexser::lexser();
-		lexser::test();
-	}else{
-		throw std::runtime_error("\n\033[1;31mclang: error: no input files\033[0m\n");
-	}
-	return 0;
-}
