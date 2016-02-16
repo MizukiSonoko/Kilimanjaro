@@ -14,6 +14,7 @@
 #include <llvm/IR/ValueHandle.h>
 
 #include <string>
+#include <vector>
 #include <iostream>
 #include <memory>
 #include <exception>
@@ -32,7 +33,7 @@ namespace CodeGen{
         {}
 
         const char* what () const throw (){
-          return ("[Exception] "+msg).c_str();
+          return ("\n[Exception] "+msg).c_str();
         }
     };
 
@@ -57,39 +58,6 @@ namespace CodeGen{
 
     shared_ptr<CodeGenContext> context;
 
-    void setEntry(llvm::Function* function){
-      llvm::BasicBlock* entry = llvm::BasicBlock::Create( context->context, "entry", function);
-      context->builder.SetInsertPoint(entry);
-    }
-
-    template<typename T>
-    llvm::Function* makeFunction(string  name){
-      return nullptr;
-    }
-
-    template<>
-    llvm::Function* makeFunction<int>(string  name){
-      auto function = llvm::Function::Create(
-          llvm::FunctionType::get( context->builder.getInt32Ty(), false ),
-          llvm::Function::ExternalLinkage,
-          name,
-          context->module
-        );
-      setEntry(function);
-      return function;
-    }
-
-
-    template<>
-    llvm::Function* makeFunction<void>(string  name){
-      return  llvm::Function::Create(
-          llvm::FunctionType::get( context->builder.getVoidTy(), false ),
-          llvm::Function::ExternalLinkage,
-          name,
-          context->module
-        );
-    }
-
     unique_ptr<llvm::BinaryOperator> addExpr(unique_ptr<llvm::Value> lhs,unique_ptr<llvm::Value> rhs){
       return unique_ptr<llvm::BinaryOperator>(llvm::BinaryOperator::CreateAdd(lhs.get(),rhs.get()));
     }
@@ -113,8 +81,13 @@ namespace CodeGen{
       return unique_ptr<llvm::Value>(llvm::ConstantFP::get(context->context, llvm::APFloat(v)));
     }
 
+    template<>
+    unique_ptr<llvm::Value> makeValue<double>(double v){
+      return unique_ptr<llvm::Value>(llvm::ConstantFP::get(context->context, llvm::APFloat(v)));
+    }
 
-    unique_ptr<llvm::BinaryOperator> makeBinExpr(unique_ptr<AST> ast){
+
+    void makeBinExpr(unique_ptr<AST> ast){
         if(ast->is("BinaryExpr")){
             auto right = ast->get("right");
             auto left = ast->get("left");
@@ -122,13 +95,67 @@ namespace CodeGen{
                 context->builder.CreateFAdd(
                   makeValue(right->asFloat()).get(),
                   makeValue(left->asFloat()).get(),
-                  "addExpr"
+                  "addtmp"
                 );
+                return;
             }
         }
         throw ValueException("You must insert correct BinExpr");
     }
 
+
+    void setEntry(llvm::Function* function){
+      llvm::BasicBlock* entry = llvm::BasicBlock::Create( context->context, "entry", function);
+      context->builder.SetInsertPoint(entry);
+    }
+
+    template<typename T>
+    llvm::Function* makeFunction(string  name, vector<unique_ptr<AST>> asts){
+      return nullptr;
+    }
+
+    template<>
+    llvm::Function* makeFunction<int>(string  name, vector<std::unique_ptr<AST>> asts){
+      auto function = llvm::Function::Create(
+          llvm::FunctionType::get( context->builder.getInt32Ty(), false ),
+          llvm::Function::ExternalLinkage,
+          name,
+          context->module
+        );
+      setEntry(function);
+
+
+      auto ret = context->builder.CreateFAdd(
+        makeValue(1.0f).get(),
+        makeValue(3.0f).get(),
+        "addtmp"
+      );
+
+/*
+      for(auto& ast : asts){
+        makeBinExpr(move(ast));
+      }
+*/
+      context->builder.CreateRet(ret);
+
+      return function;
+    }
+
+
+    template<>
+    llvm::Function* makeFunction<void>(string  name, vector<unique_ptr<AST>> asts){
+      return  llvm::Function::Create(
+          llvm::FunctionType::get( context->builder.getVoidTy(), false ),
+          llvm::Function::ExternalLinkage,
+          name,
+          context->module
+        );
+    }
+
+
+    void dump(){
+      context->module->dump();
+    }
 };
 
 
@@ -152,13 +179,12 @@ int main(){
 
     CodeGen::init();
 
-    auto main = CodeGen::makeFunction<int>("main");
-
     auto ast = generateTestAst();
-    CodeGen::makeBinExpr(move(ast));
+    std::vector<CodeGen::unique_ptr<AST>> asts;
+    asts.push_back( move(ast) );
+    CodeGen::makeFunction<int>("main", move(asts));
 
-    verifyFunction(*main);
-    main->dump();
-
+    CodeGen::dump();
+    
     return 0;
   }
