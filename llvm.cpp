@@ -73,7 +73,8 @@ namespace CodeGen{
 
     template<>
     unique_ptr<llvm::Value> makeValue<int>(int v){
-      return unique_ptr<llvm::Value>(llvm::ConstantInt::get(context->context, llvm::APInt(v, 32)));
+      bool  is_signed = false;
+      return unique_ptr<llvm::Value>(llvm::ConstantInt::get(context->context, llvm::APInt(/*nbits*/32, v, /*bool*/is_signed)));
     }
 
     template<>
@@ -125,9 +126,9 @@ namespace CodeGen{
       setEntry(function);
 
 
-      auto ret = context->builder.CreateFAdd(
-        makeValue(1.0f).get(),
-        makeValue(3.0f).get(),
+      auto ret = context->builder.CreateNUWAdd(
+        makeValue(1).get(),
+        makeValue(3).get(),
         "addtmp"
       );
 
