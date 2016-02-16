@@ -16,6 +16,8 @@
 #include <string>
 #include <memory>
 
+#include "ast.h"
+
 namespace CodeGen{
 
     using namespace std;
@@ -73,24 +75,61 @@ namespace CodeGen{
         );
     }
 
-    llvm::Value* add(llvm::Value* lhs,llvm::Value* rhs){
-      return llvm::BinaryOperator::CreateAdd(move(lhs), move(rhs));
+    unique_ptr<llvm::BinaryOperator> addExpr(unique_ptr<llvm::Value> lhs,unique_ptr<llvm::Value> rhs){
+      return unique_ptr<llvm::BinaryOperator>(llvm::BinaryOperator::CreateAdd(lhs.get(),rhs.get()));
     }
-
-    llvm::Value* sub(llvm::Value* lhs,llvm::Value* rhs){
-      return llvm::BinaryOperator::CreateSub(move(lhs), move(rhs));
-    }
-
-    llvm::Value* mul(llvm::Value* lhs,llvm::Value* rhs){
-      return llvm::BinaryOperator::CreateMul(move(lhs), move(rhs));
-    }
-
 
     void init(){
         context = make_shared<CodeGenContext>("sharo");
     }
 
+    template<typename T>
+    unique_ptr<llvm::Value> makeValue(T v){
+      throw "Not implement";
+    }
+
+    template<>
+    unique_ptr<llvm::Value> makeValue<int>(int v){
+      return unique_ptr<llvm::Value>(llvm::ConstantInt::get(context->context, llvm::APInt(v, 32)));
+    }
+
+    template<>
+    unique_ptr<llvm::Value> makeValue<float>(float v){
+      return unique_ptr<llvm::Value>(llvm::ConstantFP::get(context->context, llvm::APFloat(v)));
+    }
+
+
+    unique_ptr<llvm::BinaryOperator> makeBinExpr(unique_ptr<AST> ast){
+        if(ast->is("BinaryExpr")){
+            auto right = ast->get("right");
+            auto left = ast->get("left");
+
+            auto ope = ast->get("operator");
+            if(ope->is("+")){
+                return addExpr(makeValue(right->asInt()),makeValue(right->asInt()));
+            }
+        }
+        return nullptr;
+    }
+
 };
+
+
+std::unique_ptr<AST> generateTestAst(){
+
+  std::unique_ptr<AST> one = llvm::make_unique<AST>("1", AST::Type::Int); 
+  std::unique_ptr<AST> five = llvm::make_unique<AST>("5", AST::Type::Int);
+
+  std::unique_ptr<AST> plus = llvm::make_unique<AST>("+");
+
+  std::unique_ptr<AST> result = llvm::make_unique<AST>("BinaryExpr"); 
+  result->append("right", move(one));
+  result->append("left", move(five));
+
+  result->append("operator", move(plus));
+
+  return result;
+}
 
 int main(){
 
