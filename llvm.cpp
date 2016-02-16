@@ -14,13 +14,28 @@
 #include <llvm/IR/ValueHandle.h>
 
 #include <string>
+#include <iostream>
 #include <memory>
+#include <exception>
 
 #include "ast.h"
 
 namespace CodeGen{
 
     using namespace std;
+
+    class ValueException : public exception{
+        string msg;
+      public:
+        ValueException(string m):
+          msg(move(m))
+        {}
+
+        const char* what () const throw (){
+          return ("[Exception] "+msg).c_str();
+        }
+    };
+
 
     struct CodeGenContext{
         llvm::LLVMContext& context;
@@ -85,7 +100,7 @@ namespace CodeGen{
 
     template<typename T>
     unique_ptr<llvm::Value> makeValue(T v){
-      throw "Not implement";
+      throw ValueException("Not implement");
     }
 
     template<>
@@ -103,13 +118,15 @@ namespace CodeGen{
         if(ast->is("BinaryExpr")){
             auto right = ast->get("right");
             auto left = ast->get("left");
-
-            auto ope = ast->get("operator");
-            if(ope->is("+")){
-                return addExpr(makeValue(right->asInt()),makeValue(right->asInt()));
+            if(ast->get("operator")->is("+")){
+                context->builder.CreateFAdd(
+                  makeValue(right->asFloat()).get(),
+                  makeValue(left->asFloat()).get(),
+                  "addExpr"
+                );
             }
         }
-        return nullptr;
+        throw ValueException("You must insert correct BinExpr");
     }
 
 };
@@ -117,8 +134,8 @@ namespace CodeGen{
 
 std::unique_ptr<AST> generateTestAst(){
 
-  std::unique_ptr<AST> one = llvm::make_unique<AST>("1", AST::Type::Int); 
-  std::unique_ptr<AST> five = llvm::make_unique<AST>("5", AST::Type::Int);
+  std::unique_ptr<AST> one = llvm::make_unique<AST>("1.0", AST::Type::Float); 
+  std::unique_ptr<AST> five = llvm::make_unique<AST>("5.0", AST::Type::Float);
 
   std::unique_ptr<AST> plus = llvm::make_unique<AST>("+");
 
@@ -134,7 +151,14 @@ std::unique_ptr<AST> generateTestAst(){
 int main(){
 
     CodeGen::init();
+
     auto main = CodeGen::makeFunction<int>("main");
+
+    auto ast = generateTestAst();
+    CodeGen::makeBinExpr(move(ast));
+
+    verifyFunction(*main);
+    main->dump();
 
     return 0;
   }
