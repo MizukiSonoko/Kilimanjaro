@@ -63,12 +63,15 @@ namespace parser{
 	struct Item{
         Sign left;
         std::vector<Sign> rights;
+
+        Sign head;
         int pos;
 
-        Item(Sign l, vector<Sign> r):
+        Item(Sign l, vector<Sign> r,Sign head):
         pos(0),
         left(move(l)),
-        rights(move(r))
+        rights(move(r)),
+        head(move(head))
         {}
 
         Sign nextSign(){
@@ -96,7 +99,7 @@ namespace parser{
 		}
 
 		friend std::ostream& operator<<(std::ostream &out, const Item &i){
-			out << std::string(i.left) <<" => ";
+			out <<"("<< std::string(i.left) <<" => ";
 
 			if(i.pos == 0){
 				out<< " . ";
@@ -109,7 +112,7 @@ namespace parser{
 					out<<"   ";
 				}
 			}
-			out << "\n";
+			out <<", "<< std::string(i.head)<< ") \n";
 			return out;
 		}
 	};
@@ -281,7 +284,31 @@ namespace parser{
         return res;
     }
 
-
+    std::vector<Item> closure(std::vector<Item> I){
+        vector<Item> res; 
+        int size;
+        do{
+            size = res.size();
+            for(auto i : I){
+                if(!i.isLast()){
+                    auto X = i.nextSign();
+                    auto z = i.head;
+                    i.next();
+                    if(!i.isLast()){
+                        auto beta = i.nextSign();
+                        for(auto x : getItems(X)){
+                            auto w = first(beta);
+                            for(auto s : w){
+                                x.head = s; 
+                                res.push_back(x);
+                            }
+                        }
+                    }
+                }
+            }
+        }while(size != res.size());
+        return res;
+    }
 /*
 
     std::vector<Sign> follow(Sign s){
@@ -322,7 +349,7 @@ namespace parser{
 		*/
 		vector<int> newStateNumbers;
 		auto state = DFAutomaton.at(st);
-		
+		cout <<"state:"<< st << endl;
 		for(auto item : state->items){
 			//cout <<" size is "<< state->items.size() << endl;
 			Sign first = item.nextSign();
@@ -353,7 +380,6 @@ namespace parser{
 			if(first.name=="")
 				continue;
 			//cout << string(first) << endl;
-
 			if(!item.isLast()){
 				if(transitions.find(first.name) == transitions.end()){
 					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size()));
@@ -377,36 +403,31 @@ namespace parser{
 
         grammar.push_back(Item( E,
             { T, Eq }
-        ));
-
+        , Fin));
         grammar.push_back(Item( Eq,
             {mtS("+"), T,  Eq }
-        ));
+        , E));
         grammar.push_back(Item( Eq,
             { Eps }
-        ));
-        
+        , Fin));        
 		grammar.push_back(Item( T,
             { F, Tq}
-        ));
-        
+        , Fin));
 		grammar.push_back(Item( Tq,
             { mtS("*"), F, Tq }
-        ));
+        , E));
         grammar.push_back(Item( Tq,
             { Eps }
-        ));
-
+        , Fin));
         grammar.push_back(Item( F,
             { mtS("("), E, mtS(")")}
-        ));
+        , Fin));
         grammar.push_back(Item( F,
             { mtS("i")}
-		));
-
+		, Fin));
         grammar.push_back(Item( S,
             { E, Fin}
-		));
+		, Fin));
 
 		for(auto I : grammar){
 			follows.emplace( I.left, follow(I.left));
