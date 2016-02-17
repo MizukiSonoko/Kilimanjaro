@@ -130,14 +130,17 @@ namespace CodeGen{
         throw ValueException("Not implement makeBinAddSubExpr");
     }
 
-    void VariableDecl(shared_ptr<AST> ast){
+    llvm::Value* VariableDecl(shared_ptr<AST> ast){
         auto value = ast->get("Value");
         auto expr  = ast->get("Expr");
-        // 上書きは今回認められないわぁ
+        /*/ 上書きは今回認められないわぁ
         if(context->NameTable.find(value->name()) != context->NameTable.end()){      
             throw ValueException(value->name() + " is already defined!");
         }
-        context->NameTable[value->name()] = ast2value(move(expr));
+        // */
+        auto val = ast2value(move(expr));
+        context->NameTable[value->name()] = val;
+        return val;
     }
 
     llvm::Value* getValue(shared_ptr<AST> ast){
@@ -147,6 +150,133 @@ namespace CodeGen{
         throw ValueException(name+" is undefined value");
     }
 
+    llvm::Value* ifStatement(shared_ptr<AST> ast){
+        llvm::Value* condVal = ast2value(ast->get("cond"));
+        if (!condVal){
+          return nullptr;
+        }
+
+        condVal = context->builder.CreateICmpNE( condVal, makeValue(0), "ifcond");
+
+        llvm::Function *function = context->builder.GetInsertBlock()->getParent();
+
+        llvm::BasicBlock *thenBlock  = llvm::BasicBlock::Create( context->context, "then", function);
+        llvm::BasicBlock* elseBlock  = llvm::BasicBlock::Create( context->context, "else");
+        llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create( context->context, "ifcont");
+
+        context->builder.CreateCondBr(condVal, thenBlock, elseBlock);
+
+        context->builder.SetInsertPoint(thenBlock);
+
+        llvm::Value* thenVal= ast2value(ast->get("then"));
+        if (!thenVal)
+          return nullptr;
+
+        context->builder.CreateBr(mergeBlock);
+        thenBlock = context->builder.GetInsertBlock();
+
+        function->getBasicBlockList().push_back(elseBlock);
+        context->builder.SetInsertPoint(elseBlock);
+
+        llvm::Value* elseVal = ast2value(ast->get("else"));
+        if (!elseVal)
+          return nullptr;
+
+        context->builder.CreateBr(mergeBlock);
+        elseBlock = context->builder.GetInsertBlock();
+
+        function->getBasicBlockList().push_back(mergeBlock);
+        context->builder.SetInsertPoint(mergeBlock);
+        llvm::PHINode *PN =
+            context->builder.CreatePHI(llvm::Type::getInt32Ty(context->context), 2, "iftmp");
+
+        PN->addIncoming(thenVal, thenBlock);
+        PN->addIncoming(elseVal, elseBlock);
+        return PN;
+    }
+
+    llvm::forStatement(shared_ptr<AST> ast){
+        Value *StartVal = Start->codegen();
+        if (!StartVal)
+            return nullptr;
+
+        llvm::Function *function = context->builder.GetInsertBlock()->getParent();
+        llvm::BasicBlock *preheaderBlock = context->builder.GetInsertBlock();
+        llvm::BasicBlock *loopBlock = llvm::BasicBlock::Create( context->context, "loop", function);
+
+        Builder.CreateBr(loopBlock);
+        Builder.SetInsertPoint(loopBlock);
+
+        // Start the PHI node with an entry for Start.
+        PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()),
+                                              2, VarName.c_str());
+        Variable->addIncoming(StartVal, PreheaderBB);
+
+        // Within the loop, the variable is defined equal to the PHI node.  If it
+        // shadows an existing variable, we have to restore it, so save it now.
+        Value *OldVal = NamedValues[VarName];
+        NamedValues[VarName] = Variable;
+
+        // Emit the body of the loop.  This, like any other expr, can change the
+        // current BB.  Note that we ignore the value computed by the body, but don't
+        // allow an error.
+        if (!Body->codegen())
+          return nullptr;
+
+        // Emit the step value.
+        Value *StepVal = nullptr;
+        if (Step) {
+          StepVal = Step->codegen();
+          if (!StepVal)
+            return nullptr;
+        } else {
+          // If not specified, use 1.0.
+          StepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
+        }
+
+        Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
+
+        // Compute the end condition.
+        Value *EndCond = End->codegen();
+        if (!EndCond)
+          return nullptr;
+
+        // Convert condition to a bool by comparing equal to 0.0.
+        EndCond = Builder.CreateFCmpONE(
+            EndCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
+
+        // Create the "after loop" block and insert it.
+        BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+        BasicBlock *AfterBB =
+            BasicBlock::Create(getGlobalContext(), "afterloop", TheFunction);
+
+        // Insert the conditional branch into the end of LoopEndBB.
+        Builder.CreateCondBr(EndCond, LoopBB, AfterBB);
+
+        // Any new code will be inserted in AfterBB.
+        Builder.SetInsertPoint(AfterBB);
+
+        // Add a new entry to the PHI node for the backedge.
+        Variable->addIncoming(NextVar, LoopEndBB);
+
+        // Restore the unshadowed variable.
+        if (OldVal)
+          NamedValues[VarName] = OldVal;
+        else
+          NamedValues.erase(VarName);
+
+        // for expr always returns 0.0.
+        return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
+
+
+    }
+
+
+
+    llvm::Value* Return(shared_ptr<AST> ast){
+        auto value = ast->get("Value");
+        return context->builder.CreateRet(ast2value(value));
+    }
 
     llvm::Value* ast2value(shared_ptr<AST> ast){
         if(ast->isInt()){
@@ -160,10 +290,11 @@ namespace CodeGen{
         }else if(ast->is("Value")){
             return getValue(move(ast));
         }else if(ast->is("VariableDecl")){
-            VariableDecl(move(ast));
-            return nullptr;
-        }else{
-            throw ValueException("Not implement ast2value");
+            return VariableDecl(move(ast));
+        }else if(ast->is("Return")){
+            return Return(ast);
+        }else if(ast->is("ifStatement")){
+            return ifStatement(ast);
         }
         throw ValueException("Not implement ast2value");
     }
@@ -189,12 +320,10 @@ namespace CodeGen{
         );
       setEntry(function);
 
-      llvm::Value* result;
       for(auto& st : statements){
-        result = ast2value(move(st));
+        ast2value(move(st));
       }
 
-      context->builder.CreateRet(result);
       return function;
     }
 
@@ -217,6 +346,19 @@ namespace CodeGen{
 
 
 
+std::shared_ptr<AST> gIfStatement(std::shared_ptr<AST> cond, std::shared_ptr<AST> then, std::shared_ptr<AST> els){
+    std::shared_ptr<AST> result = CodeGen::make_shared<AST>("ifStatement");
+    result->append("cond", move(cond));
+    result->append("then", move(then));
+    result->append("else", move(els));
+    return result;
+}
+
+std::shared_ptr<AST> gReturn(std::shared_ptr<AST> value){
+    std::shared_ptr<AST> result = CodeGen::make_shared<AST>("Return");
+    result->append("Value", move(value));
+    return result;
+}
 
 
 std::shared_ptr<AST> gValDecl(std::string name, std::shared_ptr<AST> expr){
@@ -261,8 +403,20 @@ std::shared_ptr<AST> gDiv(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
 std::vector<CodeGen::shared_ptr<AST>> generateTestAst(){
   std::vector<CodeGen::shared_ptr<AST>> result;
   
-  // val hoge = 1 + 2;
-  std::shared_ptr<AST> one = CodeGen::make_shared<AST>("1", AST::Type::Int); 
+  // val sharo = 1;
+  result.push_back( gValDecl("sharo", CodeGen::make_shared<AST>("3", AST::Type::Int)));
+
+  // if sharo:
+  //    chino = 1
+  // else:
+  //    chino = 3
+  result.push_back( gIfStatement(CodeGen::make_shared<AST>("Value","sharo"),
+      gValDecl("chino", CodeGen::make_shared<AST>("1", AST::Type::Int)),
+      gValDecl("chino", CodeGen::make_shared<AST>("3", AST::Type::Int))
+  ));
+
+  // val hoge = chino + 2;
+  std::shared_ptr<AST> one =  CodeGen::make_shared<AST>("Value","chino"); 
   std::shared_ptr<AST> two = CodeGen::make_shared<AST>("2", AST::Type::Int);
   result.push_back( gValDecl("hoge", gAdd(move(one), move(two))));
 
@@ -271,8 +425,8 @@ std::vector<CodeGen::shared_ptr<AST>> generateTestAst(){
   std::shared_ptr<AST> hoge = CodeGen::make_shared<AST>("Value","hoge");
   result.push_back( gValDecl("huga", gMul(move(three), hoge)));
 
-  // hoge + huga
-  result.push_back( gAdd(move(hoge), CodeGen::make_shared<AST>("Value","huga")));
+  // return hoge + huga
+  result.push_back( gReturn(gAdd(move(hoge), CodeGen::make_shared<AST>("Value","huga"))));
   return result;
 }
 
