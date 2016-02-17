@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "token.h"
+
 template<typename T>
 bool TypeOf(std::string str,T type) {
     std::istringstream is(str);
@@ -16,14 +18,15 @@ bool TypeOf(std::string str,T type) {
 class AST{
 	std::string name_;
 	std::map<std::string,std::shared_ptr<AST>> childs;
-
+    std::string valName;
     public:
 
     enum class Type{
         None = -1,
         Int,
-        Float
+        Float,
     } type;
+
 
 	AST(std::string name, AST::Type type):
 		name_(name),
@@ -34,6 +37,13 @@ class AST{
         name_(name),
         type(AST::Type::None)
     {}
+
+    AST(std::string name, std::string valName):
+        name_(name),
+        valName(valName),
+        type(AST::Type::None)
+    {}
+
 
     AST():
         name_(""),
@@ -46,6 +56,10 @@ class AST{
 
     std::string name() const{
         return name_;
+    }
+
+    std::string valueName() const{
+        return valName;
     }
 
     bool is(std::string name){
