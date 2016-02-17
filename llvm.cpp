@@ -133,18 +133,44 @@ namespace CodeGen{
     llvm::Value* VariableDecl(shared_ptr<AST> ast){
         auto value = ast->get("Value");
         auto expr  = ast->get("Expr");
-        /*/ 上書きは今回認められないわぁ
+        // 上書きは今回認められないわぁ
         if(context->NameTable.find(value->name()) != context->NameTable.end()){      
             throw ValueException(value->name() + " is already defined!");
         }
-        // */
+        // 
         auto val = ast2value(move(expr));
         context->NameTable[value->name()] = val;
         return val;
     }
 
+    llvm::Value* VariableDecl(string name, llvm::Value* val){
+        // 上書きは今回認められないわぁ
+        if(context->NameTable.find(name) != context->NameTable.end()){      
+            throw ValueException(name + " is already defined!");
+        }
+        context->NameTable[name] = val;
+        return val;
+    }
+
+    llvm::Value* VariableOverride(string name, llvm::Value* val){
+        // 上書きは認めるわぁ
+        context->NameTable[name] = val;
+        return val;
+    }
+
+    void VariableRemove(string name){
+      context->NameTable.erase(context->NameTable.find(name));
+    }
+
+
     llvm::Value* getValue(shared_ptr<AST> ast){
         auto name = ast->valueName();
+        if(context->NameTable.find(name) != context->NameTable.end())
+            return context->NameTable[name];
+        throw ValueException(name+" is undefined value");
+    }
+
+    llvm::Value* getValue(string name){
         if(context->NameTable.find(name) != context->NameTable.end())
             return context->NameTable[name];
         throw ValueException(name+" is undefined value");
@@ -195,78 +221,82 @@ namespace CodeGen{
         return PN;
     }
 
-    llvm::forStatement(shared_ptr<AST> ast){
-        Value *StartVal = Start->codegen();
-        if (!StartVal)
+// Output for-loop as:
+//   ...
+//   start = startexpr
+//   goto loop
+// loop:
+//   variable = phi [start, loopheader], [nextvariable, loopend]
+//   ...
+//   bodyexpr
+//   ...
+// loopend:
+//   step = stepexpr
+//   nextvariable = variable + step
+//   endcond = endexpr
+//   br endcond, loop, endloop
+// outloop:
+
+    llvm::Value* forStatement(shared_ptr<AST> ast){
+        llvm::Value* startVal = ast2value(ast->get("start"));
+        if (!startVal)
             return nullptr;
 
+        string valueName = ast->get("value")->name();
         llvm::Function *function = context->builder.GetInsertBlock()->getParent();
         llvm::BasicBlock *preheaderBlock = context->builder.GetInsertBlock();
         llvm::BasicBlock *loopBlock = llvm::BasicBlock::Create( context->context, "loop", function);
 
-        Builder.CreateBr(loopBlock);
-        Builder.SetInsertPoint(loopBlock);
+        context->builder.CreateBr(loopBlock);
+        context->builder.SetInsertPoint(loopBlock);
 
-        // Start the PHI node with an entry for Start.
-        PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()),
-                                              2, VarName.c_str());
-        Variable->addIncoming(StartVal, PreheaderBB);
+        llvm::PHINode *variable = context->builder.CreatePHI(llvm::Type::getInt32Ty( context->context), 2, valueName.c_str());
+        variable->addIncoming(startVal, preheaderBlock);
 
         // Within the loop, the variable is defined equal to the PHI node.  If it
         // shadows an existing variable, we have to restore it, so save it now.
-        Value *OldVal = NamedValues[VarName];
-        NamedValues[VarName] = Variable;
+        llvm::Value *oldVal = getValue(valueName);
+        VariableDecl( valueName, variable);
 
         // Emit the body of the loop.  This, like any other expr, can change the
         // current BB.  Note that we ignore the value computed by the body, but don't
         // allow an error.
-        if (!Body->codegen())
-          return nullptr;
+        ast2value(ast->get("body"));
 
         // Emit the step value.
-        Value *StepVal = nullptr;
-        if (Step) {
-          StepVal = Step->codegen();
-          if (!StepVal)
-            return nullptr;
-        } else {
-          // If not specified, use 1.0.
-          StepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
-        }
+        llvm::Value* stepVal = nullptr;
+        stepVal = llvm::ConstantFP::get( context->context, llvm::APFloat(1.0));
 
-        Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
+        llvm::Value* nextVal = context->builder.CreateFAdd(variable, stepVal, "nextvar");
 
         // Compute the end condition.
-        Value *EndCond = End->codegen();
-        if (!EndCond)
+        llvm::Value* endCond = ast2value( ast->get("cond"));
+        if (!endCond)
           return nullptr;
 
-        // Convert condition to a bool by comparing equal to 0.0.
-        EndCond = Builder.CreateFCmpONE(
-            EndCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
+        endCond = context->builder.CreateICmpNE( endCond, makeValue(1), "loopcond");
 
-        // Create the "after loop" block and insert it.
-        BasicBlock *LoopEndBB = Builder.GetInsertBlock();
-        BasicBlock *AfterBB =
-            BasicBlock::Create(getGlobalContext(), "afterloop", TheFunction);
+        llvm::BasicBlock *loopEndBlock = context->builder.GetInsertBlock();
+        llvm::BasicBlock *afterBlock = llvm::BasicBlock::Create( context->context, "afterloop", function);
 
         // Insert the conditional branch into the end of LoopEndBB.
-        Builder.CreateCondBr(EndCond, LoopBB, AfterBB);
+        context->builder.CreateCondBr(endCond, loopBlock, afterBlock);
 
         // Any new code will be inserted in AfterBB.
-        Builder.SetInsertPoint(AfterBB);
+        context->builder.SetInsertPoint(afterBlock);
 
         // Add a new entry to the PHI node for the backedge.
-        Variable->addIncoming(NextVar, LoopEndBB);
+        variable->addIncoming(nextVal, loopEndBlock);
 
         // Restore the unshadowed variable.
-        if (OldVal)
-          NamedValues[VarName] = OldVal;
-        else
-          NamedValues.erase(VarName);
+        if (oldVal){
+          VariableOverride(valueName, oldVal);
+        }else{
+          VariableRemove(valueName);
+        }
 
         // for expr always returns 0.0.
-        return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
+        return llvm::Constant::getNullValue(llvm::Type::getDoubleTy( context->context ));
 
 
     }
