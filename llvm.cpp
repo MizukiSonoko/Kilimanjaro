@@ -133,21 +133,22 @@ namespace CodeGen{
     llvm::Value* VariableDecl(shared_ptr<AST> ast){
         auto value = ast->get("Value");
         auto expr  = ast->get("Expr");
-        // 上書きは今回認められないわぁ
+        /*/ 上書きは今回認められないわぁ
         if(context->NameTable.find(value->name()) != context->NameTable.end()){      
             throw ValueException(value->name() + " is already defined!");
         }
-        // 
+        // */ 
         auto val = ast2value(move(expr));
         context->NameTable[value->name()] = val;
         return val;
     }
 
     llvm::Value* VariableDecl(string name, llvm::Value* val){
-        // 上書きは今回認められないわぁ
+        /*/ 上書きは今回認められないわぁ
         if(context->NameTable.find(name) != context->NameTable.end()){      
             throw ValueException(name + " is already defined!");
         }
+        */
         context->NameTable[name] = val;
         return val;
     }
@@ -297,10 +298,7 @@ namespace CodeGen{
 
         // for expr always returns 0.0.
         return llvm::Constant::getNullValue(llvm::Type::getDoubleTy( context->context ));
-
-
     }
-
 
 
     llvm::Value* Return(shared_ptr<AST> ast){
@@ -324,6 +322,8 @@ namespace CodeGen{
         }else if(ast->is("Return")){
             return Return(ast);
         }else if(ast->is("ifStatement")){
+            return ifStatement(ast);
+        }else if(ast->is("forStatement")){
             return ifStatement(ast);
         }
         throw ValueException("Not implement ast2value");
@@ -373,8 +373,14 @@ namespace CodeGen{
 };
 
 
-
-
+std::shared_ptr<AST> gForStatement(std::shared_ptr<AST> start, std::shared_ptr<AST> value, std::shared_ptr<AST> body, std::shared_ptr<AST> cond){
+    std::shared_ptr<AST> result = CodeGen::make_shared<AST>("forStatement");
+    result->append("start", move(start));
+    result->append("value", move(value));
+    result->append("body", move(body));
+    result->append("cond", move(cond));
+    return result;
+}
 
 std::shared_ptr<AST> gIfStatement(std::shared_ptr<AST> cond, std::shared_ptr<AST> then, std::shared_ptr<AST> els){
     std::shared_ptr<AST> result = CodeGen::make_shared<AST>("ifStatement");
@@ -433,6 +439,8 @@ std::shared_ptr<AST> gDiv(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
 std::vector<CodeGen::shared_ptr<AST>> generateTestAst(){
   std::vector<CodeGen::shared_ptr<AST>> result;
   
+
+
   // val sharo = 1;
   result.push_back( gValDecl("sharo", CodeGen::make_shared<AST>("3", AST::Type::Int)));
 
