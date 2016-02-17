@@ -42,7 +42,7 @@ namespace CodeGen{
         llvm::LLVMContext& context;
         llvm::Module* module;
         llvm::IRBuilder<> builder;
-        map<string, shared_ptr<llvm::Value>> NameTable;
+        map<string, llvm::Value*> NameTable;
         CodeGenContext():
             context(llvm::getGlobalContext()),
             module(new llvm::Module(move("default"), context )),
@@ -59,78 +59,96 @@ namespace CodeGen{
 
     shared_ptr<CodeGenContext> context;
 
-    shared_ptr<llvm::BinaryOperator> addExpr(shared_ptr<llvm::Value> lhs,shared_ptr<llvm::Value> rhs){
-      return shared_ptr<llvm::BinaryOperator>(llvm::BinaryOperator::CreateAdd(lhs.get(),rhs.get()));
+    llvm::BinaryOperator* addExpr(llvm::Value* lhs,llvm::Value* rhs){
+      return llvm::BinaryOperator::CreateAdd(lhs, rhs);
     }
 
     void init(){
         context = make_shared<CodeGenContext>("sharo");
     }
 
-    shared_ptr<llvm::Value> ast2value(shared_ptr<AST> ast);
+    llvm::Value* ast2value(unique_ptr<AST> ast);
     
     template<typename T>
-    shared_ptr<llvm::Value> makeValue(T v){
+    llvm::Value* makeValue(T v){
       throw ValueException("Not implement makeValue");
     }
 
     template<>
-    shared_ptr<llvm::Value> makeValue<int>(int v){
+    llvm::Value* makeValue<int>(int v){
       bool  is_signed = false;
-      return shared_ptr<llvm::Value>(llvm::ConstantInt::get(context->context, llvm::APInt(/*nbits*/32, v, /*bool*/is_signed)));
+      return llvm::ConstantInt::get(context->context, llvm::APInt(/*nbits*/32, v, /*bool*/is_signed));
     }
 
     template<>
-    shared_ptr<llvm::Value> makeValue<float>(float v){
-      return shared_ptr<llvm::Value>(llvm::ConstantFP::get(context->context, llvm::APFloat(v)));
+    llvm::Value* makeValue<float>(float v){
+      return llvm::ConstantFP::get(context->context, llvm::APFloat(v));
     }
 
     template<>
-    shared_ptr<llvm::Value> makeValue<double>(double v){
-      return shared_ptr<llvm::Value>(llvm::ConstantFP::get(context->context, llvm::APFloat(v)));
+    llvm::Value* makeValue<double>(double v){
+      return llvm::ConstantFP::get(context->context, llvm::APFloat(v));
     }
 
-    shared_ptr<llvm::Value> makeBinMulDivExpr(shared_ptr<AST> ast){
+    llvm::Value* makeBinMulDivExpr(unique_ptr<AST> ast){
         auto right = ast->get("right");
         auto left  = ast->get("left");
         auto ope   = ast->get("operator");
         if(ope->is("*")){
-            return shared_ptr<llvm::Value>(context->builder.CreateMul(
-               ast2value(move(right)).get(),
-               ast2value(move(left)).get(),
+            return context->builder.CreateMul(
+               ast2value(move(right)),
+               ast2value(move(left)),
               "multmp"
-            ));
+            );
         }else if(ope->is("/")){
-            return shared_ptr<llvm::Value>(context->builder.CreateUDiv(
-               ast2value(move(right)).get(),
-               ast2value(move(left)).get(),
+            return context->builder.CreateUDiv(
+               ast2value(move(right)),
+               ast2value(move(left)),
               "divtmp"
-            ));
+            );
         }
         throw ValueException("Not implement makeBinMulDivExpr");
     }
     
-    shared_ptr<llvm::Value> makeBinAddSubExpr(shared_ptr<AST> ast){
+    llvm::Value* makeBinAddSubExpr(unique_ptr<AST> ast){
         auto right = ast->get("right");
         auto left  = ast->get("left");
         auto ope   = ast->get("operator");
         if(ope->is("+")){
-            return shared_ptr<llvm::Value>(context->builder.CreateAdd(
-               ast2value(move(right)).get(),
-               ast2value(move(left)).get(),
+            return context->builder.CreateAdd(
+               ast2value(move(right)),
+               ast2value(move(left)),
               "addtmp"
-            ));
+            );
         }else if(ope->is("-")){
-            return shared_ptr<llvm::Value>(context->builder.CreateSub(
-               ast2value(move(right)).get(),
-               ast2value(move(left)).get(),
+            return context->builder.CreateSub(
+               ast2value(move(right)),
+               ast2value(move(left)),
               "subtmp"
-            ));
+            );
         }
         throw ValueException("Not implement makeBinAddSubExpr");
     }
 
-    shared_ptr<llvm::Value> ast2value(shared_ptr<AST> ast){
+    void VariableDecl(unique_ptr<AST> ast){
+        auto value = ast->get("Value");
+        auto expr  = ast->get("Expr");
+        // 上書きは今回認められないわぁ
+        if(context->NameTable.find(value->name()) != context->NameTable.end()){      
+            throw ValueException(value->name() + " is already defined!");
+        }
+        context->NameTable[value->name()] = ast2value(move(expr));
+    }
+
+    llvm::Value* getValue(unique_ptr<AST> ast){
+        auto name = ast->name();
+        if(context->NameTable.find(name) != context->NameTable.end())
+            return context->NameTable[name];
+        throw ValueException(name+" is undefined value");
+    }
+
+
+    llvm::Value* ast2value(unique_ptr<AST> ast){
         if(ast->isInt()){
             return makeValue(ast->asInt());
         }else if(ast->isFloat()){
@@ -139,7 +157,12 @@ namespace CodeGen{
             return makeBinAddSubExpr(move(ast));
         }else if(ast->is("BinMulDivExpr")){
             return makeBinMulDivExpr(move(ast));
-        }else if(ast->is("Expression")){
+        }else if(ast->is("Value")){
+            return getValue(move(ast));
+        }else if(ast->is("VariableDecl")){
+            VariableDecl(move(ast));
+            return nullptr;
+        }else{
             throw ValueException("Not implement ast2value");
         }
         throw ValueException("Not implement ast2value");
@@ -152,12 +175,12 @@ namespace CodeGen{
     }
 
     template<typename T>
-    llvm::Function* makeFunction(string  name, vector<shared_ptr<AST>> asts){
+    llvm::Function* makeFunction(string  name, vector<unique_ptr<AST>> asts){
       return nullptr;
     }
 
     template<>
-    llvm::Function* makeFunction<int>(string  name, vector<std::shared_ptr<AST>> statements){
+    llvm::Function* makeFunction<int>(string  name, vector<std::unique_ptr<AST>> statements){
       auto function = llvm::Function::Create(
           llvm::FunctionType::get( context->builder.getInt32Ty(), false ),
           llvm::Function::ExternalLinkage,
@@ -168,7 +191,7 @@ namespace CodeGen{
 
       llvm::Value* result;
       for(auto& st : statements){
-        result = ast2value(move(st)).get();
+        result = ast2value(move(st));
       }
 
       context->builder.CreateRet(result);
@@ -176,7 +199,7 @@ namespace CodeGen{
     }
 
     template<>
-    llvm::Function* makeFunction<void>(string  name, vector<shared_ptr<AST>> asts){
+    llvm::Function* makeFunction<void>(string  name, vector<unique_ptr<AST>> asts){
       return  llvm::Function::Create(
           llvm::FunctionType::get( context->builder.getVoidTy(), false ),
           llvm::Function::ExternalLinkage,
@@ -200,50 +223,54 @@ namespace CodeGen{
 
 
 
+std::unique_ptr<AST> gValDecl(std::unique_ptr<AST> expr){
+    std::unique_ptr<AST> result = llvm::make_unique<AST>("VariableDecl");
+    result->append("Value", llvm::make_unique<AST>("hoge"));
+    result->append("Expr", move(expr));
+    return result;
+}
 
-
-
-std::shared_ptr<AST> gAdd(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
-    std::shared_ptr<AST> result = llvm::make_unique<AST>("BinAddSubExpr"); 
+std::unique_ptr<AST> gAdd(std::unique_ptr<AST> l,std::unique_ptr<AST> r){
+    std::unique_ptr<AST> result = llvm::make_unique<AST>("BinAddSubExpr"); 
     result->append("right", move(r));
     result->append("left", move(l));
     result->append("operator", llvm::make_unique<AST>("+"));
     return result;
 }
 
-std::shared_ptr<AST> gSub(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
-    std::shared_ptr<AST> result = llvm::make_unique<AST>("BinAddSubExpr"); 
+std::unique_ptr<AST> gSub(std::unique_ptr<AST> l,std::unique_ptr<AST> r){
+    std::unique_ptr<AST> result = llvm::make_unique<AST>("BinAddSubExpr"); 
     result->append("right", move(r));
     result->append("left", move(l));
     result->append("operator", llvm::make_unique<AST>("-"));
     return result;
 }
 
-std::shared_ptr<AST> gMul(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
-    std::shared_ptr<AST> result = llvm::make_unique<AST>("BinMulDivExpr"); 
+std::unique_ptr<AST> gMul(std::unique_ptr<AST> l,std::unique_ptr<AST> r){
+    std::unique_ptr<AST> result = llvm::make_unique<AST>("BinMulDivExpr"); 
     result->append("right", move(r));
     result->append("left", move(l));
     result->append("operator", llvm::make_unique<AST>("*"));
     return result;
 }
 
-std::shared_ptr<AST> gDiv(std::shared_ptr<AST> l,std::shared_ptr<AST> r){
-    std::shared_ptr<AST> result = llvm::make_unique<AST>("BinMulDivExpr"); 
+std::unique_ptr<AST> gDiv(std::unique_ptr<AST> l,std::unique_ptr<AST> r){
+    std::unique_ptr<AST> result = llvm::make_unique<AST>("BinMulDivExpr"); 
     result->append("right", move(r));
     result->append("left", move(l));
     result->append("operator", llvm::make_unique<AST>("/"));
     return result;
 }
 
-std::shared_ptr<AST> generateTestAst(){
+std::unique_ptr<AST> generateTestAst(){
 
-  std::shared_ptr<AST> one = llvm::make_unique<AST>("1", AST::Type::Int); 
-  std::shared_ptr<AST> five = llvm::make_unique<AST>("1", AST::Type::Int);
-  std::shared_ptr<AST> three = llvm::make_unique<AST>("1", AST::Type::Int);
-  std::shared_ptr<AST> four = llvm::make_unique<AST>("1", AST::Type::Int);
-  std::shared_ptr<AST> two = llvm::make_unique<AST>("1", AST::Type::Int);
+  std::unique_ptr<AST> one = llvm::make_unique<AST>("1", AST::Type::Int); 
+  std::unique_ptr<AST> five = llvm::make_unique<AST>("1", AST::Type::Int);
+  std::unique_ptr<AST> three = llvm::make_unique<AST>("1", AST::Type::Int);
+  std::unique_ptr<AST> four = llvm::make_unique<AST>("1", AST::Type::Int);
+  std::unique_ptr<AST> two = llvm::make_unique<AST>("1", AST::Type::Int);
 
-  return gAdd(move(one), gAdd(move(five), gAdd(move(three), gAdd(move(four),move(two)))));
+  return gAdd(move(one), gAdd(move(five), gMul(move(three), gAdd(move(four),move(two)))));
 }
 
 int main(){
@@ -251,7 +278,7 @@ int main(){
     CodeGen::init();
 
     auto ast = generateTestAst();
-    std::vector<CodeGen::shared_ptr<AST>> asts;
+    std::vector<CodeGen::unique_ptr<AST>> asts;
     asts.push_back( move(ast) );
     CodeGen::makeFunction<int>("main", move(asts));
 
