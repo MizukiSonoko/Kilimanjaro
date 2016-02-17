@@ -2,24 +2,36 @@
 #include <string>
 #include <memory>
 
+#include <iostream>
+#include <sstream>
+
+template<typename T>
+bool TypeOf(std::string str,T type) {
+    std::istringstream is(str);
+    T v;
+    is >> std::noskipws >> v;
+    return is.eof() && !is.fail(); 
+}
+
 class AST{
 	std::string name_;
-	std::map<std::string,std::unique_ptr<AST>> childs;
+	std::map<std::string,std::shared_ptr<AST>> childs;
 
     public:
 
     enum class Type{
         None = -1,
-        Int
+        Int,
+        Float
     } type;
 
 	AST(std::string name, AST::Type type):
-		name_(std::move(name)),
+		name_(name),
         type(std::move(type))
 	{}
 
     AST(std::string name):
-        name_(std::move(name)),
+        name_(name),
         type(AST::Type::None)
     {}
 
@@ -28,7 +40,7 @@ class AST{
         type(AST::Type::None)
     {}
 
-	void append(std::string name,std::unique_ptr<AST> ast){
+	void append(std::string name,std::shared_ptr<AST> ast){
 		childs[name] = std::move(ast);
 	}
 
@@ -47,7 +59,7 @@ class AST{
             throw name_+" is not number";
         }
     }
-
+    
     float asFloat(){
         try{
             return std::stof(name_);
@@ -56,10 +68,18 @@ class AST{
         }
     }
 
+    bool isInt(){
+        return TypeOf(name_, 0);
+    }
 
-    std::unique_ptr<AST> get(std::string name){
-        if(childs.find(name) != childs.end()){
-            return move(childs[name]);
+    bool isFloat(){
+        return TypeOf(name_, 0.0f);
+    }
+
+
+    std::shared_ptr<AST> get(std::string name){
+        if(childs.find(move(name)) != childs.end()){
+            return move(childs[move(name)]);
         }else{
             throw name_+" must have "+name;
         }
