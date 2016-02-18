@@ -12,5 +12,5 @@ $ make
 ### sample
 
 ```
-$ ./sharo test,sha
+$ ./sharo test.sha
 ```
