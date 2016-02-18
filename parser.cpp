@@ -225,6 +225,7 @@ namespace parser{
 
         std::vector< std::function<AST::AST*(bool)>> FIN;
         std::vector< std::function<AST::AST*(bool)>> Identifire;
+        std::vector< std::function<AST::AST*(bool)>> BinaryMDExpr;
         std::vector< std::function<AST::AST*(bool)>> BinaryASExpr;
         std::vector< std::function<AST::AST*(bool)>> Expression;
         std::vector< std::function<AST::AST*(bool)>> VariableDecl;
@@ -248,6 +249,175 @@ namespace parser{
                             }
                         }else{
                             return new AST::AST(AST::FINID,"<FIN>");
+                        }
+                    }
+                );
+            }
+
+            {//Number
+                Number.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if(
+                                match(Token::NUMBER) &&
+                                match(Token::PERIOD) &&
+                                match(Token::NUMBER)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::NUMBER);
+                            std::string _int = curString;
+                            match(Token::PERIOD);
+                            match(Token::NUMBER);
+                            std::string _frac = curString;
+                            return new AST::AST(AST::Number, _int + "." + _frac);
+                        }
+                    }
+                );
+                Number.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){                       
+                            if( match(Token::NUMBER) ){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);                                
+                            }
+                        }else{
+                            match(Token::NUMBER);
+                            return new AST::AST(AST::Number, curString);
+                        }
+                    }
+                );
+            }
+
+            {//ListVariableDecl
+                ListVariableDecl.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(RightValue) &&
+                                match(Token::COMMA) &&
+                                match(ListVariableDecl)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            auto _rightValue = match(RightValue);
+                            match(Token::COMMA);
+                            auto _listVariableDecl = match(ListVariableDecl);
+                            return (new AST::AST(AST::ListVariableDeclID))
+                                ->add(AST::RightValueID, _rightValue)
+                                ->add(AST::ListVariableDeclID, _listVariableDecl);
+                        }
+                    }
+                );
+                ListVariableDecl.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(RightValue) ){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            return (new AST::AST(AST::ListVariableDeclID))
+                                ->add(AST::RightValueID, match(RightValue));
+                        }
+                    }
+                );
+            }
+
+            {//List
+                List.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::LBRACKET) &&
+                                match(Identifire) &&
+                                match(Token::RBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::LBRACKET);
+                            auto _identifire = match(Identifire);
+                            match(Token::RBRACKET);
+                            return (new AST::AST(AST::ListID))
+                                ->add(AST::Identifire, _identifire);
+                        }
+                    }
+                );
+                List.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::LBRACKET) &&                           
+                                match(ListVariableDecl) &&
+                                match(Token::RBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::LBRACKET);                        
+                            auto _listVariableDecl = match(ListVariableDecl);
+                            match(Token::RBRACKET);
+                            return (new AST::AST(AST::ListID))
+                                ->add(AST::ListVariableDeclID, _listVariableDecl);
+                        }
+                    }
+                );
+                List.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::LBRACKET) &&                           
+                                match(Token::RBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::LBRACKET);                       
+                            match(Token::RBRACKET);    
+                            return new AST::AST(AST::ListID, "[]");
+                        }
+                    }
+                );        
+            }
+
+            {//ConditionExpr
+                ConditionExpr.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::LBRACKET) &&                           
+                                match(Token::RBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::LBRACKET);                       
+                            match(Token::RBRACKET);    
+                            return new AST::AST(AST::ListID, "[]");
+                        }
+                    }           
+                );
+            }
+            {//IfStatement
+                IfStatement.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::LBRACKET) &&                           
+                                match(Token::RBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::LBRACKET);                       
+                            match(Token::RBRACKET);    
+                            return new AST::AST(AST::ListID, "[]");
                         }
                     }
                 );
@@ -281,7 +451,34 @@ namespace parser{
                             return (new AST::AST(AST::Number, curString));      
                         }
                     }
-                );   
+                );
+            }
+
+            {//BinaryMDExpr
+                BinaryMDExpr.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Identifire) &&
+                                match(Token::OPE_MUL) &&
+                                match(Identifire)){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+
+                            cout<< "-> id + id ";
+                            auto id1 = match(Identifire);
+                            match(Token::OPE_MUL);
+                            auto id2 = match(Identifire);                            
+
+                            return (new AST::AST(AST::BinaryASExpr))
+                                ->add(AST::Identifire, id1)
+                                ->add(AST::Operator,new  AST::AST(AST::Operator, "*"))
+                                ->add(AST::Identifire, id2);                            
+                        }
+                    }
+                );  
             }
 
             {//BinaryASExpr
@@ -310,6 +507,7 @@ namespace parser{
                     }
                 );  
             }
+
             {// Expression
                 Expression.push_back(
                     [](bool isSpec) -> AST::AST*{
