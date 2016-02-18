@@ -1,270 +1,172 @@
-#include "parser.h"
+#include <iostream>
+#include <string>
+#include <list>
+#include <vector>
+#include <stack>
+#include <map>
+#include <functional>
+#include <initializer_list>
+#include <array> 
+#include <fstream>
+ 
+#include <cstdarg>
+#include <memory>
+#include <iterator>
+
+#include <regex>
+#include <chrono>
 #include <iomanip>
+
+#include "parser.h"
+
+#define RELEASE(x) {delete x;x=NULL;}
+#define RELEASEA(x) {delete[] x;x=NULL;}
+
+std::map<std::string, int> values;
 
 namespace parser{
 
-	using namespace std;
-
- 	struct Sign{
-
-        std::string name;
-        bool isTerm;
-
-        Sign(std::string n, bool t):
-	        name(move(n)),
-	        isTerm(move(t))
+    class ValueException : public exception{
+        string msg;
+      public:
+        ValueException(string m):
+          msg(move(m))
         {}
 
-		Sign(std::string n):
-			name(move(n)),
-		    isTerm(true)
-	    {}
-
-		Sign():
-			name(""),
-			isTerm(true)
-		{}
-
-		operator std::string() const{
-    		return name;
-		}
- 
-		bool operator==(const Sign& rhs) const{
-			return name == rhs.name;
-		};
-	
-		inline bool operator!=(const Sign& rhs) const{
-			return !(*this == rhs);
-		}
-	};
-
-    class HashSign {
-		public:
-	    size_t operator()(const Sign& s) const {
-	        const int C =  9873967;
-	        size_t t = 0;
-	        for(int i = 0; i != s.name.size(); ++i) {
-	            t = t * C + (char)s.name[i];
-	        }
-	        return t;
-	    }
-	};
-
-	struct Item{
-        Sign left;
-        std::vector<Sign> rights;
-        int pos;
-
-        Item(Sign l, vector<Sign> r):
-        pos(0),
-        left(move(l)),
-        rights(move(r))
-        {}
-
-        Sign nextSign(){
-        	if(isLast())
-        		return Sign();
-        	return rights.at(pos);
+        const char* what () const throw (){
+          return ("\n[Exception] "+msg).c_str();
         }
+    };
 
-        void next(){
-        	pos++;
+    std::list<Token>  tokens;
+
+    bool isFirst = true;
+
+    int buf_index = 0;
+    std::stack<int>       markers;
+    std::vector<Token> headTokens;
+    std::vector<Token> overHeadTokens;
+    std::string         curString;
+
+    std::map<std::string, int> variableTable;
+    std::map<std::string, int> functionTable;
+
+    std::string cur_val_name;
+
+    void log(int layour, std::string msg){
+    #ifdef DEBUG
+        for(int i=0; i < layour; i++){
+            std::cout<< " ";
         }
-
-		bool isLast(){
-			return pos == rights.size();
-		}
-
-		int posOf(Sign s){
-			int i = 0;
-			for(auto v : rights){
-				if(v == s)
-					return i;
-				i++;
-			}
-			return -1;
-		}
-
-		friend std::ostream& operator<<(std::ostream &out, const Item &i){
-			out << std::string(i.left) <<" => ";
-
-			if(i.pos == 0){
-				out<< " . ";
-			}
-			for(int j=0;j<i.rights.size();j++){
-				out << std::string(i.rights.at(j));
-				if(i.pos == j+1){
-					out<< " . ";
-				}else{
-					out<<"   ";
-				}
-			}
-			out << "\n";
-			return out;
-		}
-	};
-	
-	struct State{
-		int id;
-		vector<Item> items;
-		vector<Item> expands;
-
-		State():
-			id(-1)
-		{}
-
-		State(int id):
-			id(id)
-		{}
-
-		void append(vector<Item> newItems){
-			this->items.insert(items.end(), move(newItems).begin(), move(newItems).end());
-		}
-
-		void expand(vector<Item> newItems){
-			this->expands.insert(expands.end(), move(newItems).begin(), move(newItems).end());
-		}
-
-		void merge(){
-			this->items.insert(items.end(), expands.begin(), expands.end());
-		}
-
-		friend std::ostream& operator<<(std::ostream &out, const State &s){
-			out <<"- Q"<< std::to_string(s.id) <<" -\n";
-			for(auto item : s.items){
-				cout <<" "<< item;
-			}
-			for(auto item : s.expands){
-				cout <<"  "<< item;
-			}
-			out << "\n";
-			return out;
-		}
-	};
-
-	struct Action{
-		int id;
-		enum A{
-			SHIFT,
-			GOTO,
-			REDUCE,
-			ACCEPT
-		} action;
-
-		Action(int id,A action):
-			id(move(id)),
-			action(move(action))
-		{}
-	};
-
-	Sign mS(std::string name){
-		return Sign(name,false);
-	}
-	Sign mtS(std::string name){
-		return Sign(name);
-	}
-
-    auto  E = mS("E");
-    auto Eq = mS("Eq");
-    auto  T = mS("T");
-    auto Tq = mS("Tq");
-    auto  F = mS("F");
-
-	auto  S = mS("S");
-
-	auto Eps = mtS("Epsilon");
-	auto Fin = mtS("Fin");
-
-	std::vector<Item> grammar;
-
-	std::vector<Item> getItems(Sign s){
-		std::vector<Item> res;
-		for(auto& i : grammar){
-			if(i.left.name == s.name){
-				res.push_back(i);
-			}
-		}
-		return res;
-	}
-
-    std::vector<Sign> first(Sign sign){
-        if(sign.isTerm){
-            return {sign};
-        }
-        std::vector<Sign> res; 
-		auto items = getItems( sign );
-		if(items.size() == 0)
-			return res;
-
-        for(auto& i : items){
-        	auto ext = first(i.rights[0]);
-            if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-				ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
-               	res.insert(res.end(), ext.begin(), ext.end());
-                    if(i.rights.size() >= 2){
-                        auto nxt = first(i.rights[1]);
-                        res.insert(res.end(), nxt.begin(), nxt.end());
-                    }else{
-                        res.push_back( Eps);
-                    }
-            }else{
-            	res.insert(res.end(), ext.begin(), ext.end());
-			}
-		}
-        return res;
-    }
-
-    std::vector<Sign> first(vector<Sign>& l){
-        if(l.size() == 0)
-            return {Eps};
-
-        std::vector<Sign> res;
-        
-        auto it = l.begin();
-        if(*it == Eps) return {Eps};
-        if((*it).isTerm) return {*it};
-
-        auto ext = first(*it); 
-        if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-            ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
-            res.insert(res.end(), ext.begin(), ext.end());                
-            if(l.size() >= 2 ){
-                it++;
-                auto next = first(*it);
-                res.insert(res.end(), next.begin(), next.end());
-            }else{
-				res.push_back(Eps);
-			}
-        }
+        std::cout<< msg <<"\n";
+    #endif
     }
 
 
-    std::vector<Sign> follow(Sign s){
-        std::vector<Sign> res;
-        
-        if(s == E){
-            res.push_back(Fin);
+    auto defVariable(std::string val_name)
+         -> bool{
+        if(variableTable.find(val_name) == variableTable.end()){
+            return false;
+        }
+        return true;
+    }
+
+    namespace Core{
+
+        auto fill(int n)
+         -> bool{
+            if(n > tokens.size())
+                n = tokens.size();
+                
+            for(int i = 0;i < n;i++){
+                headTokens.push_back(move(tokens.front()));
+                tokens.pop_front();
+            }
+            return true;
         }
 
-        for(auto rit = grammar.cbegin(); rit != grammar.cend(); ++rit){
-            auto ls = (*rit).left; 
-            if(ls == s) continue;
+        auto sync(int i)
+         -> bool{
+            if(((unsigned)buf_index + i) > headTokens.size()){
+                int n = (buf_index + i) - (headTokens.size());
+                fill(n);
+            }
+            return true;
+        }
 
-			auto rs = (*rit).rights;
-            for(size_t i = 1; i < rs.size(); i++){
-            	if(rs[i] == s){
-                	if(i + 1 < rs.size()){                            
-                    	auto ext = first(rs[i+1]);
-                        if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-               	        	auto left = follow(ls);
-                            res.insert(res.end(), left.begin(), left.end());
-                        }
-                        ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
-                       	res.insert(res.end(), ext.begin(), ext.end());
-                    }else{
-                        auto left = follow(ls);
-                        res.insert(res.end(), left.begin(), left.end());
-                    }
+        auto LT(int i)
+         -> Token{        
+            sync(i);
+            return headTokens[buf_index+i-1];
+        }
+        
+        auto margin(int i)
+         -> Token{
+            return headTokens[buf_index+i-2];
+        }
+
+        auto mark()
+         -> int{
+            markers.push(buf_index);
+            return buf_index;
+        }
+
+        auto seek(int index)
+         -> bool{
+            buf_index = index;
+            return true;
+        }
+
+        auto release()
+         -> bool{
+            if(!markers.empty()){
+                int marker = markers.top();
+                markers.pop();
+                seek(marker);
+            }
+            return true;
+        }
+
+        auto isSpec()
+         -> bool{
+            return markers.size() > 0;
+        }
+
+        auto nextToken()
+         -> bool{
+            buf_index++;
+            if(((unsigned)buf_index) == headTokens.size() && !isSpec()){
+                buf_index = 0;
+                headTokens.clear();
+                return false; 
+            }
+            sync(1);   
+            return true;
+        }       
+
+    }
+
+    namespace speculate{
+        auto speculate(std::function<AST::AST*(bool)> rule)
+         -> bool{
+
+            Core::mark();
+            bool success = false;
+            if(
+                rule(true)->isCorrect
+            ){
+                success = true;
+            }
+            Core::release();
+            return success;
+        }
+
+        auto speculate(std::vector< std::function<AST::AST*(bool)>> rules)
+         -> int{
+            int case_num = 1;
+            for(auto rule : rules){
+                if(speculate(rule)){
+                    return case_num;
                 }
                 case_num ++;
             }
@@ -272,309 +174,365 @@ namespace parser{
         }
     };
 
-    bool match(){
-            Token  token =  Core::LT(1);
-            return Core::nextToken();
-    }
+    auto match(Token::Type type)
+         -> bool{
+            Token  token =  Core::LT(1);     
+            curString = token.value();
 
-/*
-
-    std::vector<Sign> follow(Sign s){
-    	if(s == E)
-    		return { Eps };
-
-    	cout << string(s) << endl;
-        std::vector<Sign> res;
-	    for(auto item : grammar){
-        	if(item.posOf(s) == -1)
-        		continue;
-
-            if(item.posOf(s) == item.rights.size()-1){
-            	if(s != item.left){
-	            	auto newFollow = follow(item.left);
-	                res.insert(res.end(), newFollow.begin(), newFollow.end());
-	            }
+            Token::Type t = token.type();
+            if(type == t){
+                Core::nextToken();
+                return true;
             }else{
-                res.push_back(item.rights.at(item.posOf(s)+1));
+                return false;
             }
-	    }
-	    return res;
-	}
-*/
-    unordered_map<Sign, vector<Sign>, HashSign> follows;
-	vector<shared_ptr<State>> DFAutomaton;
-	unordered_multimap<Sign, pair<int,int>, HashSign> transitions;
-
-	int cnt = 0;
-	void generateDFAutomaton(int st){
-		/*
-		cout<< "generateDFAutomaton("<<st<<") \n";
-		for(auto i : (*DFAutomaton[st]).items)
-			cout << i;
-		cout << "============\n";
-		cnt++;
-		if(cnt > 100) return;
-		*/
-		vector<int> newStateNumbers;
-		auto state = DFAutomaton.at(st);
-		
-		for(auto item : state->items){
-			//cout <<" size is "<< state->items.size() << endl;
-			Sign first = item.nextSign();
-			if(first.name=="")
-				continue;
-			
-			//cout << string(first) << endl;
-			if(!first.isTerm){
-				state->expand(getItems(first));
-			}
-
-			if(!item.isLast()){
-				if(transitions.find(first.name) == transitions.end()){
-					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size()));
-					transitions.emplace(first, make_pair( DFAutomaton.size()-1, st));
-					newStateNumbers.push_back(DFAutomaton.size() - 1);
-
-				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
-				item.next();
-				DFAutomaton.at(DFAutomaton.size() - 1)->append({item});
-
-				}
-			}
-		}
-		//cout << "extends\n";
-		for(auto item : state->expands){
-			Sign first = item.nextSign();
-			if(first.name=="")
-				continue;
-			//cout << string(first) << endl;
-
-			if(!item.isLast()){
-				if(transitions.find(first.name) == transitions.end()){
-					DFAutomaton.push_back(make_shared<State>(DFAutomaton.size()));
-					transitions.emplace(first, make_pair( DFAutomaton.size()-1, st));
-					newStateNumbers.push_back(DFAutomaton.size() - 1);
-				}
-				//cout<<"** \n"<< item <<" added "<< DFAutomaton.size() - 1 << endl;
-				item.next();
-				DFAutomaton.at(DFAutomaton.size() - 1)->append({item});
-				
-			}
-		}
-
-		for(auto s : newStateNumbers){
-			//cout<< st <<"'s sub generateDFAutomaton("<<s<<") "<<(*DFAutomaton[s]).items.size()<<"\n";
-       		generateDFAutomaton(s);
-       	}
-	}
-	
-	void setup(){
-
-        grammar.push_back(Item( E,
-            { T, Eq }
-        ));
-
-        grammar.push_back(Item( Eq,
-            {mtS("+"), T,  Eq }
-        ));
-        grammar.push_back(Item( Eq,
-            { Eps }
-        ));
-        
-		grammar.push_back(Item( T,
-            { F, Tq}
-        ));
-        
-		grammar.push_back(Item( Tq,
-            { mtS("*"), F, Tq }
-        ));
-        grammar.push_back(Item( Tq,
-            { Eps }
-        ));
-
-        grammar.push_back(Item( F,
-            { mtS("("), E, mtS(")")}
-        ));
-        grammar.push_back(Item( F,
-            { mtS("i")}
-		));
-
-        grammar.push_back(Item( S,
-            { E, Fin}
-		));
-
-		for(auto I : grammar){
-			follows.emplace( I.left, follow(I.left));
-		}
-
-		auto Q0 = make_shared<State>(0);
-		Q0->append(getItems(S));
-		DFAutomaton.push_back(Q0);
-
-		generateDFAutomaton(0);
-		cout << "=======\n";
-		for(int i=0;i<DFAutomaton.size();i++){
-			cout << *DFAutomaton[i] << endl;
-		}
-
-		for(auto itr = transitions.begin(); itr != transitions.end(); ++itr) {
-        	std::cout << "key = " << itr->first.name
-	        << ": from:"<< itr->second.second<< " to:" << itr->second.first << "\n";
-    	}
-
-    	vector<unordered_map<Sign, shared_ptr<Action>, HashSign>> parserTable(DFAutomaton.size());
-
-		for(auto it = transitions.begin(); it != transitions.end(); ++it){
-			if(it->first.isTerm){
-				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::SHIFT));
-				cout <<"shift("<< it->second.second <<","<< it->second.first <<")\n";
-			}else{
-				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::GOTO));
-				cout <<"goto("<< it->second.second <<","<< it->second.first <<")\n";
-			}
-		}
-
-
-		vector<Sign> signs{mtS("i"), mtS("*"), mtS("+"), mtS("("), mtS(")"), E, Eq, T, Tq, F};		
-		cout<<"  |";
-		for(auto s : signs){
-			cout <<setw(2)<< string(s) <<"|  ";
-		}
-		cout << endl; 
-		for(int i=0;i< parserTable.size();i++){
-			cout <<setw(2)<< i << "|";
-			for(auto s : signs){
-				if(parserTable.at(i).find(s) != parserTable.at(i).end()){
-					auto ac = parserTable.at(i).find(s)->second;
-					if(ac->action == Action::SHIFT){
-						cout << "s"<<setw(2)<< ac->id <<"|";
-					}else{
-						cout << "g"<<setw(2)<< ac->id <<"|";
-					}
-				}else{
-					cout << "   |";
-				}
-			}
-			cout << endl;
-		}
-//    	parserTableparserTable.
-    } 
-    void test(Sign S){
-        std::cout << "==== First is ==="<<std::string(S)<< " ===\n";        
-        for(auto& s: first(S)){
-            std::cout << std::string(s) << std::endl;
-        }
-        std::cout<<"===== Follow is ===\n";
-        for(auto& r: follow(S)){
-            std::cout << std::string(r) << std::endl;
-        }
     }
 
-    void parser(){
-        setup();   
+    auto match(Token::Type type, std::string reserved)
+     -> bool{
+        Token  token =  Core::LT(1);     
+     
+        curString = token.value();
 
-/*		     
-		test(E);
-=======
-            if(tokens.size() == 1) return true;
-            match();
+        Token::Type t = token.type();
+        if(type == t and curString == move(reserved)){
+            Core::nextToken();
             return true;
+        }else{
+            return false;           
         }
-        test(F);
+    } 
 
-        std::cout<<"===\n";
-		std::vector<Item> items = { Item( mS("S"), { E, Fin}) };
-        closure(items);
-		std::cout<<"~~~~~~~~~~~~~~~\n";
-        for(auto i : items)
-			std::cout << i;
-	
-        //delete items;
-        
-        //create_dfa();
-        //for(auto rit = rule_table.begin(); rit != rule_table.end(); ++rit){
-        //    if(rit.second)
-        //        rit.second.reset();
-        //}
-*/        
+    auto match(std::vector< std::function<AST::AST*(bool)>> rules)
+     -> AST::AST* {        
+        int _result = speculate::speculate(rules);
+        if(!_result){
+            return nullptr;
+        }
+        return rules[ _result-1 ](false);
     }
+    
+    namespace Rule{
+        // Rules
+        std::map<AST::AstID, std::vector< std::function<AST::AST*(bool)>>> rules;
+        std::vector< std::function<AST::AST*(bool)>> Number;
+        std::vector< std::function<AST::AST*(bool)>> List;
+        std::vector< std::function<AST::AST*(bool)>> Operator;
+        std::vector< std::function<AST::AST*(bool)>> ListVariableDecl;
+        std::vector< std::function<AST::AST*(bool)>> ConditionExpr;
+        std::vector< std::function<AST::AST*(bool)>> IfStatement;
+        std::vector< std::function<AST::AST*(bool)>> RightValue;
 
-    void loadRule(list<Token> rt){
-        cout<<"Load rule set\n";
-        map<string, vector< vector<pair<string,Token::Type>>>> ruleset;
-        vector<pair<string,Token::Type>> tmps;
+        std::vector< std::function<AST::AST*(bool)>> FIN;
+        std::vector< std::function<AST::AST*(bool)>> Identifire;
+        std::vector< std::function<AST::AST*(bool)>> BinaryASExpr;
+        std::vector< std::function<AST::AST*(bool)>> Expression;
+        std::vector< std::function<AST::AST*(bool)>> VariableDecl;
+        std::vector< std::function<AST::AST*(bool)>> Statement;
+        std::vector< std::function<AST::AST*(bool)>> Function;        
+        std::vector< std::function<AST::AST*(bool)>> Code;
 
-        int status = 0;
-        string name = "";
-        for(auto t : rt){
-            switch(t.type()){
-                case Token::LABRACKET:
-                    if(status == 0){
-                        status = 1;
-                    }
-                    break;
-                case Token::IDENTIFIER:
-                    if(status == 1){
-                        name = t.value();
-                        status = 2;
-                    }else if(status == 6){
-                        tmps.push_back(make_pair(t.value(), Token::NONE));                        
-                    }
-                    break;
-                case Token::RABRACKET:
-                    if(status == 2){
-                        status = 3;
-                    }
-                    break;
-                case Token::COLON:
-                    if(status == 3 ){
-                        status++;
-                    }else if(status == 4){
-                        status = 5;
-                    }
-                    break;
-                case Token::EQUAL:
-                    if(status == 5){
-                        status = 6;
-                    }
-                    break;
-                case Token::PERIOD:
-                    if(status == 6){
-                        status = 0;
-                        cout<<"---- Rule ----\n";
-                        cout << name << " -> ";
-                        for(auto p : tmps){
-                            cout << p.first <<" ";
-                        }
-                        cout<<"\n--------------\n";
-                        Rule::rules[name].push_back(tmps);
-                        tmps.clear();
-                    }
-                    break;
-                default:
-                    if(status == 6){
-                        if(t.type() == Token::IDENTIFIER){
-                            tmps.push_back(make_pair(t.value(), Token::NAME));
+        std::vector< std::function<AST::AST*(bool)>> TestCore;
+
+        auto setup()
+         -> bool{
+
+            {//Fin
+                FIN.push_back( 
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::FIN) ){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
                         }else{
-                            tmps.push_back(make_pair(t.value(), t.type()));
+                            return new AST::AST(AST::FINID,"<FIN>");
                         }
                     }
+                );
             }
-        }
-        cout<<"Done\n";
+
+            {// Identifire
+                Identifire.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::IDENTIFIER) ){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::IDENTIFIER);
+                            return (new AST::AST(AST::Identifire, curString));      
+                        }
+                    }
+                ); 
+                Identifire.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::NUMBER)){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            match(Token::NUMBER);
+                            return (new AST::AST(AST::Number, curString));      
+                        }
+                    }
+                );   
+            }
+
+            {//BinaryASExpr
+                BinaryASExpr.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Identifire) &&
+                                match(Token::OPE_ADD) &&
+                                match(Identifire)){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+
+                            cout<< "-> id + id ";
+                            auto id1 = match(Identifire);
+                            match(Token::OPE_ADD);
+                            auto id2 = match(Identifire);                            
+
+                            return (new AST::AST(AST::BinaryASExpr))
+                                ->add(AST::Identifire, id1)
+                                ->add(AST::Operator,new  AST::AST(AST::Operator, "+"))
+                                ->add(AST::Identifire, id2);                            
+                        }
+                    }
+                );  
+            }
+            {// Expression
+                Expression.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Identifire)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            cout<< "-> identifire ";
+                            auto identifire = match(Identifire);
+                            return identifire;
+                        }
+                    }
+                );
+
+                Expression.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(BinaryASExpr)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            cout<< "-> binASExpr( ";
+                            auto binExpr = match(BinaryASExpr);
+                            return binExpr;
+                        }
+                    }
+                );
+            }
+
+            {//VariableDecl
+                VariableDecl.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::IDENTIFIER, "val") &
+                                match(Token::IDENTIFIER) &&
+                                match(Token::EQUAL) &&
+                                match(Expression) &&
+                                match(Token::SEMICOLON)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            cout<< "-> val id = Expression( ";
+                            match(Token::IDENTIFIER, "val");
+                            match(Token::IDENTIFIER);
+                            auto name = curString;
+                            log(0,"define "+ curString);
+
+                            match(Token::EQUAL);                            
+                            auto expression = match(Expression);
+                            match(Token::SEMICOLON);
+                            return (new AST::AST(AST::VariableDeclID))
+                                ->add(AST::Value, new AST::AST(AST::Value, name))
+                                ->add(AST::Expression, expression);
+                        }
+                    }
+                );
+            }
+
+            {// Statement
+                Statement.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            return match(VariableDecl) ?
+                                new AST::AST(true) :
+                                new AST::AST(false);
+                        }else{
+                            cout<< "-> VariableDecl( ";
+                            auto variableDecl = match(VariableDecl);
+                            return (new AST::AST(AST::StatementID))
+                                ->add(AST::VariableDeclID, variableDecl);
+                        }
+                    }
+                );
+            }
+
+            {// Function
+                Function.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::IDENTIFIER, "def") &&
+                                match(Token::IDENTIFIER) &&
+                                match(Token::LPARENT) &&
+                                match(Token::RPARENT) && 
+                                match(Token::LCBRACKET) &&
+                                match(Statement) &&
+                                match(Token::RCBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            cout<< "-> def id() { Statement } ";
+                            match(Token::IDENTIFIER, "def");
+                            match(Token::IDENTIFIER);
+
+                            auto name = curString;
+
+                            match(Token::LPARENT);
+                            match(Token::RPARENT);
+                            match(Token::LCBRACKET);
+
+                            auto statement = match(Statement);
+
+                            match(Token::RCBRACKET); 
+                            return (new AST::AST(AST::Function, name));
+                        }
+                    }
+                );
+
+                Function.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Token::IDENTIFIER, "def") &&
+                                match(Token::IDENTIFIER) &&
+                                match(Token::LPARENT) &&
+                                match(Token::RPARENT) && 
+                                match(Token::LCBRACKET) &&
+                                match(Token::RCBRACKET)){
+                                return new AST::AST(true);
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            cout<< "-> def id() { } ";
+                            match(Token::IDENTIFIER, "def");
+                            match(Token::IDENTIFIER);
+
+                            auto name = curString;
+
+                            match(Token::LPARENT);
+                            match(Token::RPARENT);
+                            match(Token::LCBRACKET);
+
+                            match(Token::RCBRACKET); 
+                            return (new AST::AST(AST::Function, name));
+                        }
+                    }
+                );
+            }
+
+            {//Code
+                Code.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            return match(FIN) ?
+                                new AST::AST(true) :
+                                new AST::AST(false);
+                        }else{
+                            match(FIN);
+                            return (new AST::AST(AST::Code));
+                        }
+                    }
+                );
+
+                Code.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Function) &&
+                                match(FIN) ){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            auto function = match(Function);
+                            match(FIN);
+                            return (new AST::AST(AST::Code))
+                                ->add(AST::Function, function);
+                        }
+                    }
+                );
+
+                Code.push_back(
+                    [](bool isSpec) -> AST::AST*{
+                        if(isSpec){
+                            if( match(Function) &&
+                                match(Code) &&
+                                match(FIN) ){
+                                return new AST::AST(true);   
+                            }else{
+                                return new AST::AST(false);
+                            }
+                        }else{
+                            auto function = match(Function);
+                            auto code = match(Code);
+                            match(FIN);
+                            return (new AST::AST(AST::Code))
+                                ->add(AST::Function, function)
+                                ->add(AST::Code, code);
+                        }
+                    }
+                );
+            }
+
+            return true;
+        }        
     }
 
-    AST::AST* parser(list<Token> t){
-        log(log_pos, "Parse start!");
-        tokens = t;
+    auto parser(list<Token> t)
+     -> AST::AST*{
+
+        tokens = move(t);
+
         buf_index = 0;
         while(markers.size()!=0){
             markers.pop();
         }
-        headTokens.clear();
-
-        auto res = match("PS");
-        cout << res << endl;
-        return nullptr;
+        headTokens.clear();   
+        
+        if(isFirst){
+            Rule::setup();     
+            isFirst = false;
+        }
+        
+        auto result = match(Rule::Code);
+        cout << result << endl;
+        return result;
     }
 }

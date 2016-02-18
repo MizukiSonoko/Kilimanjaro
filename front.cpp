@@ -3,27 +3,15 @@
 
 int main(int argc, char* argv[]){
 	if(argc == 2){
-		lexser::loader(std::string(argv[1]));
-		lexser::lexser();
-	}else if(argc == 3){
-
 		std::cout<<"Load file["<< argv[1] <<"]\n";		
 		lexser::loader(std::string(argv[1]));
 		lexser::lexser();
 		auto tokens = lexser::tokens();
 		std::cout<<"Done!\n---- tokens ----\n";
 		for(auto t : tokens){
-			std::cout<< t.value() << std::endl;
+			std::cout<< t.value() <<" "<<t.type()<< std::endl;
 		}
 		std::cout<<"---- tokens ----\n";
-
-		std::cout<<"Load file["<< argv[2] <<"]\n";
-		lexser::loader(std::string(argv[2]));
-		lexser::lexser();
-		auto ruleTokens = lexser::tokens();
-		std::cout<<"Done!\n";
-
-		parser::loadRule(ruleTokens);
 		parser::parser(tokens);
 
 	}else{

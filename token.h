@@ -17,8 +17,8 @@ class Token{
 	        LPARENT,
 	        RPARENT,
 	        RBRACKET,
-	        LBRACKET,
-	        RABRACKET,	        
+	        LBRACKET,   // 10
+	        RABRACKET,	       
 	        LABRACKET,
 	        RCBRACKET,
 	        LCBRACKET,
@@ -39,13 +39,14 @@ class Token{
 	};
 
 	Token(Type aType,std::string aValue):
-		type_(aType),
-		value_(aValue){}
+		type_(std::move(aType)),
+		value_(std::move(aValue))
+	{}
 
-	Type type(){
+	Type type() const{
 		return type_;
 	}
-	std::string value(){
+	std::string value() const{
 		return value_;
 	}
   private:

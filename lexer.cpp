@@ -67,7 +67,7 @@ namespace lexser{
 		int status = 0;
     	string buffer = "";
     	char c;
-        for(int i = 0;i < rowString_.size();){
+        for(unsigned int i = 0;i < rowString_.size();){
         	c = rowString_[i]; 
         	switch(status){
         		case 1:
@@ -88,7 +88,7 @@ namespace lexser{
 	            		if(buffer.find(".", 0) != string::npos){
 		                    tokens_.push_back(Token(Token::NUMBER,buffer));
 		                }else{
-		                    tokens_.push_back(Token(Token::REALNUMBER,buffer));
+		                    tokens_.push_back(Token(Token::NUMBER,buffer));
 		                }
 	                    buffer = "";
 	                    status = 0;

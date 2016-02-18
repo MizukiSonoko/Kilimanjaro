@@ -16,6 +16,5 @@ namespace parser{
 
     using namespace std;
 
-    void loadRule(list<Token> tokens);
-    AST<void>* parser(list<Token> tokens);
+    AST::AST* parser(list<Token> tokens);
 }
