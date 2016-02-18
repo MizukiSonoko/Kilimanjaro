@@ -1,6 +1,7 @@
 #include "token.h"
 
 #include <map>
+#include <vector>
 
 namespace AST{
     enum AstID{
@@ -15,24 +16,43 @@ namespace AST{
         BinaryASExpr,
         Identifire,
         VariableDeclID,
-        StatementID
+        StatementID,
+        ListVariableDeclID,
+        RightValueID,
+        ListID,
+        
+        OPE_ADD,
+        OPE_SUB,
+        OPE_MUL,
+        OPE_DIV,
+
+        Condition,
+        Then,
+        Else,
+
+        START,
+        Body,
+
+        Right,
+        Left
     };
 
 
     class AST{
 
-            std::multimap<AstID, AST*> subAST;
+            std::map<AstID, AST*> subAST;
             AstID type;
-            std::string value;
+            std::string name_;
+            std::string value_;
         public:
             /* Using only speculate.*/
             bool isCorrect;
             AST(bool isC):
-                type(NONE),value(""),isCorrect(isC){};
+                type(NONE),value_(""),isCorrect(isC){};
 
-            AST():type(FINID),value("<FIN>"){};
+            AST():type(FINID),value_("<FIN>"){};
             AST(AstID type):type(type){};
-            AST(AstID type,std::string value):type(type),value(value){};
+            AST(AstID type,std::string value):type(type),value_(value){};
             ~AST(){
                 for(auto it = subAST.begin(); it != subAST.end(); it++){ 
                     delete it->second;
@@ -55,7 +75,7 @@ namespace AST{
                 }
             }
 
-            std::multimap<AstID, AST*> getSubAST(){
+            std::map<AstID, AST*> getSubAST(){
                 return subAST;
             }
 
@@ -67,11 +87,19 @@ namespace AST{
                 return subAST.find(id) != subAST.end();
             }
 
-            std::string getValue(){
-                return value;
+            std::string name(){
+                return name_;
             }
 
-            std::vector<AST*> get(AstID id){
+            std::string value(){
+                return value_;
+            }
+
+            std::shared_ptr<AST> get(AstID id){
+                if(has(id))
+                    return std::shared_ptr<AST>(subAST[id]);
+                return nullptr;
+                /*
                 std::vector<AST*> res;
                 auto it  = subAST.lower_bound(id);
                 auto end = subAST.upper_bound(id);
@@ -80,6 +108,7 @@ namespace AST{
                     ++it;
                 }                       
                 return res;
+                */
             } 
 
             // For debug.

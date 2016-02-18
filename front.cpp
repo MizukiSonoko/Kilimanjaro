@@ -12,8 +12,16 @@ int main(int argc, char* argv[]){
 			std::cout<< t.value() <<" "<<t.type()<< std::endl;
 		}
 		std::cout<<"---- tokens ----\n";
-		parser::parser(tokens);
+		auto ast = parser::parser(tokens);
 
+		atd::cout<<"--- LLVM ----\n";
+	    CodeGen::init();
+
+	    CodeGen::makeFunction<int>("main", move(ast));
+	    CodeGen::dump();
+    
+    return 0;
+  }
 	}else{
 		exit(1);
 		//throw std::runtime_error("\n\033[1;31msharo: error: no input files\033[0m\n");
