@@ -17,13 +17,13 @@ namespace parser{
 
  	struct Sign{
 
-        std::string name;
-        bool isTerm;
+    std::string name;
+    bool isTerm;
 
-        Sign(std::string n, bool t):
-	        name(move(n)),
-	        isTerm(move(t))
-        {}
+    Sign(std::string n, bool t):
+	  	name(move(n)),
+	    isTerm(move(t))
+    {}
 
 		Sign(std::string n):
 			name(move(n)),
