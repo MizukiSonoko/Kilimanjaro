@@ -48,7 +48,7 @@ namespace parser{
 		}
 	};
 
-    class HashSign {
+  class HashSign {
 		public:
 	    size_t operator()(const Sign& s) const {
 	        const int C =  9873967;
@@ -177,20 +177,20 @@ namespace parser{
 		return Sign(name);
 	}
 
-    auto  E = mS("E");
-    auto Eq = mS("Eq");
-    auto  T = mS("T");
-    auto Tq = mS("Tq");
-    auto  F = mS("F");
+auto  E = mS("E");
+auto Eq = mS("Eq");
+auto  T = mS("T");
+auto Tq = mS("Tq");
+auto  F = mS("F");
 
-	auto  S = mS("S");
+auto  S = mS("S");
 
-	auto Eps = mtS("Epsilon");
-	auto Fin = mtS("Fin");
+auto Eps = mtS("Epsilon");
+auto Fin = mtS("Fin");
 
-	std::vector<Item> grammar;
+std::vector<Item> grammar;
 
-	std::vector<Item> getItems(Sign s){
+std::vector<Item> getItems(Sign s){
 		std::vector<Item> res;
 		for(auto& i : grammar){
 			if(i.left.name == s.name){
@@ -200,20 +200,20 @@ namespace parser{
 		return res;
 	}
 
-    std::vector<Sign> first(Sign sign){
-        if(sign.isTerm){
-            return {sign};
-        }
-        std::vector<Sign> res; 
-		auto items = getItems( sign );
-		if(items.size() == 0)
-			return res;
+std::vector<Sign> first(Sign sign){
+	if(sign.isTerm){
+  	return {sign};
+  }
+	std::vector<Sign> res; 
+	auto items = getItems( sign );
+	if(items.size() == 0)
+		return res;
 
-        for(auto& i : items){
-        	auto ext = first(i.rights[0]);
-            if(find(ext.begin(), ext.end(), Eps) != ext.end()){
-				ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
-               	res.insert(res.end(), ext.begin(), ext.end());
+  for(auto& i : items){
+  	auto ext = first(i.rights[0]);
+    if(find(ext.begin(), ext.end(), Eps) != ext.end()){
+			ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
+    	res.insert(res.end(), ext.begin(), ext.end());
                     if(i.rights.size() >= 2){
                         auto nxt = first(i.rights[1]);
                         res.insert(res.end(), nxt.begin(), nxt.end());
@@ -227,7 +227,7 @@ namespace parser{
         return res;
     }
 
-    std::vector<Sign> first(vector<Sign>& l){
+std::vector<Sign> first(vector<Sign>& l){
         if(l.size() == 0)
             return {Eps};
 

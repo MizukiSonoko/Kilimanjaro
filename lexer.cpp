@@ -67,17 +67,14 @@ namespace lexser{
 	                i++;
 	                break;
 	            case 2:
-	            	// ============================ //
-	            	//  とりあえず10e+1等の表記は除外　 //
-	            	// ============================ //
 	            	if(!decide::isNumber(c) && c != '.'){
 	            		if(buffer.find(".", 0) != string::npos){
 		                    tokens_.push_back(Token(Token::NUMBER,buffer));
 		                }else{
 		                    tokens_.push_back(Token(Token::REALNUMBER,buffer));
 		                }
-	                    buffer = "";
-	                    status = 0;
+	                  buffer = "";
+	                  status = 0;
 	            	}else if(decide::isNumber(c)){
 	            		buffer += c;
 	            		i++;
