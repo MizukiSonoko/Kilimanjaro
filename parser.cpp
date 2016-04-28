@@ -464,7 +464,7 @@ std::vector<Sign> first(vector<Sign>& l){
 		vector<Sign> signs{mtS("i"), mtS("*"), mtS("+"), mtS("("), mtS(")"), E, Eq, T, Tq, F};		
 		cout<<"  |";
 		for(auto s : signs){
-			cout <<setw(2)<< string(s) <<"|  ";
+			cout <<setw(3)<< string(s) <<"|  ";
 		}
 		cout << endl; 
 		for(int i=0;i< parserTable.size();i++){
