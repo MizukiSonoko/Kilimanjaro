@@ -60,7 +60,7 @@ namespace parser{
 	    }
 	};
 
-	struct Item{
+struct Item{
         Sign left;
         std::vector<Sign> rights;
 
@@ -74,21 +74,21 @@ namespace parser{
         head(move(head))
         {}
 
-        Sign nextSign(){
+        Sign nextSign() noexcept{
         	if(isLast())
         		return Sign();
         	return rights.at(pos);
         }
 
-        void next(){
-        	pos++;
-        }
+  void next() noexcept{
+    pos++;
+  }
 
-		bool isLast(){
+		bool isLast() noexcept{
 			return pos == rights.size();
 		}
 
-		int posOf(Sign s){
+		int posOf(Sign s) noexcept{
 			int i = 0;
 			for(auto v : rights){
 				if(v == s)
@@ -98,7 +98,7 @@ namespace parser{
 			return -1;
 		}
 
-		friend std::ostream& operator<<(std::ostream &out, const Item &i){
+		friend ostream& operator<<(ostream &out, const Item &i){
 			out <<"("<< std::string(i.left) <<" => ";
 
 			if(i.pos == 0){
@@ -130,11 +130,11 @@ namespace parser{
 			id(id)
 		{}
 
-		void append(vector<Item> newItems){
+		void append(vector<Item>&& newItems){
 			this->items.insert(items.end(), move(newItems).begin(), move(newItems).end());
 		}
 
-		void expand(vector<Item> newItems){
+		void expand(vector<Item>&& newItems){
 			this->expands.insert(expands.end(), move(newItems).begin(), move(newItems).end());
 		}
 
@@ -155,9 +155,9 @@ namespace parser{
 		}
 	};
 
-	struct Action{
+struct Action{
 		int id;
-		enum A{
+		enum class A{
 			SHIFT,
 			GOTO,
 			REDUCE,
@@ -168,14 +168,15 @@ namespace parser{
 			id(move(id)),
 			action(move(action))
 		{}
-	};
+};
 
-	Sign mS(std::string name){
-		return Sign(name,false);
-	}
-	Sign mtS(std::string name){
-		return Sign(name);
-	}
+Sign mS(std::string&& name){
+  return Sign(move(name),false);
+}
+
+Sign mtS(std::string&& name){
+  return Sign(move(name));
+}
 
 auto  E = mS("E");
 auto Eq = mS("Eq");
@@ -214,7 +215,7 @@ std::vector<Sign> first(Sign sign){
     if(find(ext.begin(), ext.end(), Eps) != ext.end()){
 			ext.erase(remove(ext.begin(), ext.end(), Eps), ext.end());
     	res.insert(res.end(), ext.begin(), ext.end());
-                    if(i.rights.size() >= 2){
+        if(i.rights.size() >= 2){
                         auto nxt = first(i.rights[1]);
                         res.insert(res.end(), nxt.begin(), nxt.end());
                     }else{
@@ -252,7 +253,7 @@ std::vector<Sign> first(vector<Sign>& l){
         return ext;
     }
 
-    std::vector<Sign> follow(Sign s){
+std::vector<Sign> follow(Sign s){
         std::vector<Sign> res;
         
         if(s == E){
@@ -284,7 +285,7 @@ std::vector<Sign> first(vector<Sign>& l){
         return res;
     }
 
-    std::vector<Item> closure(std::vector<Item> I){
+std::vector<Item> closure(std::vector<Item> I){
         vector<Item> res; 
         int size;
         do{
@@ -333,20 +334,20 @@ std::vector<Sign> first(vector<Sign>& l){
 	    return res;
 	}
 */
-    unordered_map<Sign, vector<Sign>, HashSign> follows;
+  unordered_map<Sign, vector<Sign>, HashSign> follows;
 	vector<shared_ptr<State>> DFAutomaton;
 	unordered_multimap<Sign, pair<int,int>, HashSign> transitions;
 
 	int cnt = 0;
 	void generateDFAutomaton(int st){
-		/*
+		
 		cout<< "generateDFAutomaton("<<st<<") \n";
 		for(auto i : (*DFAutomaton[st]).items)
 			cout << i;
 		cout << "============\n";
 		cnt++;
 		if(cnt > 100) return;
-		*/
+		
 		vector<int> newStateNumbers;
 		auto state = DFAutomaton.at(st);
 		cout <<"state:"<< st << endl;
@@ -394,13 +395,14 @@ std::vector<Sign> first(vector<Sign>& l){
 		}
 
 		for(auto s : newStateNumbers){
-			//cout<< st <<"'s sub generateDFAutomaton("<<s<<") "<<(*DFAutomaton[s]).items.size()<<"\n";
+			cout<< st <<"'s sub generateDFAutomaton("<<s<<") "<<(*DFAutomaton[s]).items.size()<<"\n";
        		generateDFAutomaton(s);
        	}
 	}
 	
 	void setup(){
 
+	
         grammar.push_back(Item( E,
             { T, Eq }
         , Fin));
@@ -452,10 +454,10 @@ std::vector<Sign> first(vector<Sign>& l){
 
 		for(auto it = transitions.begin(); it != transitions.end(); ++it){
 			if(it->first.isTerm){
-				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::SHIFT));
+				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::A::SHIFT));
 				cout <<"shift("<< it->second.second <<","<< it->second.first <<")\n";
 			}else{
-				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::GOTO));
+				parserTable.at(it->second.second).emplace( it->first, make_shared<Action>(it->second.first, Action::A::GOTO));
 				cout <<"goto("<< it->second.second <<","<< it->second.first <<")\n";
 			}
 		}
@@ -472,7 +474,7 @@ std::vector<Sign> first(vector<Sign>& l){
 			for(auto s : signs){
 				if(parserTable.at(i).find(s) != parserTable.at(i).end()){
 					auto ac = parserTable.at(i).find(s)->second;
-					if(ac->action == Action::SHIFT){
+					if(ac->action == Action::A::SHIFT){
 						cout << "s"<<setw(2)<< ac->id <<"|";
 					}else{
 						cout << "g"<<setw(2)<< ac->id <<"|";
